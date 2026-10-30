@@ -65,14 +65,6 @@
                 <span class="pet-float-grip-text">下に引いて画面を小さくする</span>
             </button>
 
-            <!-- 親密度（なつき度）：記録するほど上がる。予算オーバーでも下がらない -->
-            <div class="affinity-box" id="affinity-box" title="記録するほどペットとなかよくなります">
-                <span class="material-icons-round affinity-heart">favorite</span>
-                <span class="affinity-label" id="affinity-label">はじめまして</span>
-                <span class="affinity-track"><span class="affinity-fill" id="affinity-fill"></span></span>
-                <span class="affinity-score" id="affinity-score">0</span>
-            </div>
-            <p class="affinity-note"><span id="login-streak-label"></span><span>（毎回の登録で1ポイントたまります）</span></p>
 
             <div class="pet-chat-bar">
                 <input type="text" class="pet-chat-input" id="pet-chat-input" placeholder="ペットに話しかける" maxlength="40" autocomplete="off">
@@ -121,7 +113,6 @@
                     <div class="budget-progress-track">
                         <div class="budget-progress-fill" id="budget-progress-fill"></div>
                     </div>
-                    <p class="budget-category-summary" id="budget-category-summary"></p>
                 </div>
                 <div class="budget-box-edit" id="budget-box-edit">
                     <input type="number" id="budget-input" placeholder="0" min="0" step="1000">
@@ -134,9 +125,6 @@
             <div class="breakdown-box" id="breakdown-box">
                 <div class="section-title-bar breakdown-title">
                     <h2 id="breakdown-title-text">内訳</h2>
-                    <button class="filter-toggle-btn" id="btn-open-category-budget" type="button" title="カテゴリ別予算">
-                        <span class="material-icons-round">savings</span>カテゴリ予算
-                    </button>
                 </div>
                 <div class="breakdown-list" id="breakdown-list"></div>
             </div>
@@ -149,8 +137,6 @@
                 <div class="section-title-bar">
                     <h2 id="charts-title-text">グラフ</h2>
                 </div>
-                <p class="chart-summary" id="chart-summary"></p>
-
                 <div class="chart-block">
                     <div class="chart-block-head">
                         <span class="chart-block-title">日別の支出</span>
@@ -161,55 +147,15 @@
 
                 <div class="chart-block">
                     <div class="chart-block-head">
-                        <span class="chart-block-title">週別</span>
-                    </div>
-                    <div class="weekly-list" id="weekly-list"></div>
-                </div>
-
-                <div class="chart-block">
-                    <div class="chart-block-head">
                         <span class="chart-block-title">前月との比較</span>
                     </div>
                     <div class="compare-list" id="compare-list"></div>
                 </div>
             </div>
 
-            <!-- 支出の記録（絞り込み付き） -->
+            <!-- 支出の記録 -->
             <div class="section-title-bar">
                 <h2>支出の記録</h2>
-                <button class="filter-toggle-btn" id="btn-toggle-filter" title="絞り込み">
-                    <span class="material-icons-round">filter_list</span>絞り込み
-                </button>
-                <span class="filter-count" id="filter-count"></span>
-            </div>
-
-            <div class="filter-panel" id="filter-panel">
-                <div class="filter-row">
-                    <input type="text" id="filter-keyword" class="filter-input"
-                           placeholder="キーワード（メモ・店舗・品目）" autocomplete="off">
-                </div>
-                <div class="filter-row">
-                    <select id="filter-category" class="filter-select"></select>
-                </div>
-                <div class="filter-row">
-                    <input type="number" id="filter-min" class="filter-input-sm" placeholder="金額 下限" min="0">
-                    <span class="filter-tilde">〜</span>
-                    <input type="number" id="filter-max" class="filter-input-sm" placeholder="金額 上限" min="0">
-                </div>
-                <div class="filter-row">
-                    <input type="date" id="filter-from" class="filter-input-sm">
-                    <span class="filter-tilde">〜</span>
-                    <input type="date" id="filter-to" class="filter-input-sm">
-                </div>
-                <div class="filter-row filter-row-actions">
-                    <select id="filter-sort" class="filter-select">
-                        <option value="date-desc">新しい順</option>
-                        <option value="date-asc">古い順</option>
-                        <option value="amount-desc">金額が大きい順</option>
-                        <option value="amount-asc">金額が小さい順</option>
-                    </select>
-                    <button type="button" class="text-cancel-button" id="btn-clear-filter">条件をクリア</button>
-                </div>
             </div>
 
             <div class="timeline" id="expense-timeline"></div>
@@ -246,7 +192,7 @@
         </div>
 
         <!-- 支出記録・編集モーダル -->
-        <div class="modal-overlay" id="modal-expense">
+        <div class="modal-overlay shop-overlay" id="modal-expense">
             <div class="modal-content">
                 <div class="modal-header">
                     <h3 id="expense-modal-title">支出を記録</h3>
@@ -314,7 +260,7 @@
         </div>
 
         <!-- AIプランナーモーダル -->
-        <div class="modal-overlay" id="modal-planner">
+        <div class="modal-overlay shop-overlay" id="modal-planner">
             <div class="modal-content planner-content">
                 <div class="modal-header">
                     <h3>貯金プランナー</h3>
@@ -365,7 +311,7 @@
         </div>
 
         <!-- カテゴリ管理モーダル -->
-        <div class="modal-overlay" id="modal-category">
+        <div class="modal-overlay shop-overlay" id="modal-category">
             <div class="modal-content">
                 <div class="modal-header">
                     <h3>カテゴリ設定</h3>
@@ -392,33 +338,8 @@
             </div>
         </div>
 
-        <!-- カテゴリ別予算モーダル -->
-        <div class="modal-overlay" id="modal-category-budget">
-            <div class="modal-content category-budget-content">
-                <div class="modal-header">
-                    <h3>カテゴリ別予算</h3>
-                    <button class="close-button" id="btn-close-category-budget">閉じる</button>
-                </div>
-                <div class="modal-body">
-                    <p class="data-section-desc" id="category-budget-desc">今月、カテゴリごとに使える金額を決めます。空欄のカテゴリは「決めない」になります。</p>
-                    <div class="category-budget-actions">
-                        <button class="secondary-button" id="btn-suggest-category-budget" type="button">
-                            <span class="material-icons-round">auto_fix_high</span>
-                            過去3か月から提案
-                        </button>
-                        <span class="category-budget-total" id="category-budget-total"></span>
-                    </div>
-                    <div class="category-budget-list" id="category-budget-list"></div>
-                    <p class="field-hint">カテゴリ予算の合計が総予算を超えても保存できます。超えている場合は赤く表示します。</p>
-                </div>
-                <div class="modal-footer">
-                    <button class="primary-button" id="btn-save-category-budget" type="button">この内容で保存</button>
-                </div>
-            </div>
-        </div>
-
         <!-- データ管理モーダル -->
-        <div class="modal-overlay" id="modal-data">
+        <div class="modal-overlay shop-overlay" id="modal-data">
             <div class="modal-content">
                 <div class="modal-header">
                     <h3>データ管理</h3>
@@ -554,9 +475,7 @@
                 <div class="daily-login-body">
                     <span class="material-icons-round daily-login-icon">redeem</span>
                     <h3>ログインボーナス！</h3>
-                    <p class="daily-login-streak" id="daily-login-streak"></p>
                     <p class="daily-login-desc">今日も余裕、ある？<br>ログインポイントを受け取ろう</p>
-                    <p class="daily-login-note">（毎回の登録で1ポイントたまります）</p>
                     <div class="daily-login-amount"><span class="material-icons-round">toll</span><span id="daily-login-amount-value">200</span></div>
                     <button class="primary-button" id="btn-claim-daily-login">受け取る</button>
                     <button class="daily-login-later" id="btn-later-daily-login">あとで</button>
@@ -565,7 +484,7 @@
         </div>
 
         <!-- ガチャ・コレクション -->
-        <div class="modal-overlay" id="modal-gacha">
+        <div class="modal-overlay shop-overlay" id="modal-gacha">
             <div class="modal-content gacha-content">
                 <div class="modal-header">
                     <h3>ガチャ</h3>
@@ -647,6 +566,12 @@
             <!-- [修改点] 编辑器也支持横向滚动 -->
             <div class="room-editor-scroll-wrapper">
                 <div class="room-editor-canvas" id="room-editor-canvas"></div>
+            </div>
+            <div class="room-editor-actions" id="room-editor-actions">
+                <button type="button" class="editor-action-btn" id="btn-layer-front"><span class="material-icons-round">arrow_upward</span>前へ</button>
+                <button type="button" class="editor-action-btn" id="btn-layer-back"><span class="material-icons-round">arrow_downward</span>後ろへ</button>
+                <button type="button" class="editor-action-btn is-danger" id="btn-item-remove"><span class="material-icons-round">inventory_2</span>持ち物へ</button>
+                <button type="button" class="editor-action-btn is-confirm" id="btn-item-confirm"><span class="material-icons-round">check</span>確定</button>
             </div>
             <div class="room-editor-tray" id="room-editor-tray">
                 <div class="room-editor-tray-label">持ち物</div>

@@ -2082,14 +2082,6 @@ html, body {
    ------------------------------------------------------------ */
 .charts-box { padding-bottom: 6px; }
 
-.chart-summary {
-    font-size: 0.75rem;
-    color: var(--ink-soft);
-    margin: 2px 0 4px 0;
-    line-height: 1.6;
-    font-family: var(--font-mono);
-}
-
 .chart-block { margin-top: 14px; }
 
 .chart-block-head {
@@ -2132,44 +2124,6 @@ html, body {
     font-size: 0.78rem;
 }
 
-.weekly-row {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    padding: 5px 0;
-}
-.weekly-label {
-    width: 84px;
-    flex-shrink: 0;
-    font-size: 0.75rem;
-    color: var(--ink-soft);
-    white-space: nowrap;
-}
-.weekly-track {
-    flex: 1;
-    height: 8px;
-    background: var(--line);
-    border-radius: 0;
-    overflow: hidden;
-}
-.weekly-fill {
-    display: block;
-    height: 100%;
-    background: var(--accent);
-    border-radius: 0;
-    transition: width 0.3s ease;
-}
-.weekly-value {
-    width: 100px;
-    flex-shrink: 0;
-    text-align: right;
-    font-size: 0.75rem;
-    font-family: var(--font-mono);
-    font-variant-numeric: tabular-nums;
-    color: var(--ink);
-    white-space: nowrap;
-}
-
 .compare-row {
     display: flex;
     align-items: center;
@@ -2209,77 +2163,6 @@ html, body {
     font-variant-numeric: tabular-nums;
     color: var(--ink);
 }
-
-/* ------------------------------------------------------------
-   絞り込み
-   ------------------------------------------------------------ */
-.filter-toggle-btn {
-    display: inline-flex;
-    align-items: center;
-    gap: 3px;
-    padding: 5px 11px 5px 8px;
-    border: 1px solid var(--line-strong);
-    background: var(--surface);
-    color: var(--ink-soft);
-    border-radius: 0;
-    font-size: 0.72rem;
-    font-family: var(--font-display);
-    cursor: pointer;
-    flex-shrink: 0;
-    transition: border-color 0.15s ease, color 0.15s ease;
-}
-.filter-toggle-btn:hover { border-color: var(--accent); color: var(--ink); }
-.filter-toggle-btn span.material-icons-round { font-size: 16px; }
-
-.filter-count {
-    font-size: 0.72rem;
-    color: var(--accent);
-    font-family: var(--font-mono);
-    white-space: nowrap;
-    flex-shrink: 0;
-}
-
-.filter-panel {
-    display: none;
-    flex-direction: column;
-    gap: 8px;
-    padding: 12px;
-    margin-bottom: 6px;
-    border: 1px solid var(--line);
-    border-radius: 0;
-    background: rgba(255, 255, 255, 0.6);
-}
-.filter-panel.open { display: flex; }
-
-.filter-row {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-}
-.filter-row-actions { justify-content: space-between; }
-
-.filter-input,
-.filter-select,
-.filter-input-sm {
-    padding: 9px 10px;
-    border: 1px solid var(--line-strong);
-    border-radius: 0;
-    background: var(--surface);
-    color: var(--ink);
-    font-size: 0.82rem;
-    font-family: var(--font-display);
-    outline: none;
-    min-width: 0;
-    transition: border-color 0.15s ease;
-}
-.filter-input { flex: 1; }
-.filter-select { flex: 1; appearance: none; -webkit-appearance: none; cursor: pointer; }
-.filter-input-sm { flex: 1; }
-.filter-input:focus,
-.filter-select:focus,
-.filter-input-sm:focus { border-color: var(--accent); }
-
-.filter-tilde { color: var(--muted); font-size: 0.78rem; flex-shrink: 0; }
 
 /* ------------------------------------------------------------
    レシート読み取り
@@ -2647,72 +2530,10 @@ html, body {
 .room-section.is-compact .pet-float-grip {
     color: var(--accent);
 }
-
-
-/* ============================================================
-   ▼ 親密度（なつき度）
-   ============================================================ */
-.affinity-box {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    margin: 6px 0 2px 0;
-    padding: 7px 12px;
-    border: 1px solid var(--line);
-    border-radius: 0;
-    background: rgba(255, 255, 255, 0.6);
-}
-
-.affinity-heart {
-    font-size: 16px;
-    color: var(--danger);
-    flex-shrink: 0;
-    transition: opacity 0.2s ease;
-}
-.affinity-box[data-level="0"] .affinity-heart { opacity: 0.3; }
-.affinity-box[data-level="3"] .affinity-heart,
-.affinity-box[data-level="4"] .affinity-heart,
-.affinity-box[data-level="5"] .affinity-heart {
-    animation: heartBeat 1.8s ease-in-out infinite;
-}
 @keyframes heartBeat {
     0%, 100% { transform: scale(1); }
     18%      { transform: scale(1.24); }
     36%      { transform: scale(1); }
-}
-
-.affinity-label {
-    font-size: 0.72rem;
-    color: var(--ink-soft);
-    white-space: nowrap;
-    flex-shrink: 0;
-}
-
-.affinity-track {
-    flex: 1;
-    min-width: 36px;
-    height: 6px;
-    border-radius: 0;
-    background: var(--line);
-    overflow: hidden;
-}
-.affinity-fill {
-    display: block;
-    height: 100%;
-    width: 0%;
-    border-radius: 0;
-    background: var(--danger);
-    transition: width 0.45s ease;
-}
-
-.affinity-score {
-    font-size: 0.72rem;
-    color: var(--accent);
-    font-family: var(--font-mono);
-    font-variant-numeric: tabular-nums;
-    flex-shrink: 0;
-    min-width: 2em;
-    text-align: right;
 }
 
 /* 横スクロールはブラウザに任せ、縦の「引いて縮小」はこちらで受け取る */
@@ -3013,15 +2834,7 @@ html, body, .app-container { touch-action: manipulation; }
 @media (max-width: 350px) {
     .icon-button { width: 27px; height: 27px; }
     .icon-button span { font-size: 18px; }
-}
-
-/* ============================================================
-   可読性パス
-   「下の字が小さい」という声を受けて、本文・補助情報を
-   0.8rem（18px 基準で 14.4px）以上に底上げする。
-   見出しやバッジなど、意図的に小さい装飾は対象外。
-   ============================================================ */
-.badge-time,
+}.badge-time,
 .field-hint,
 .data-section-desc,
 .data-section-title,
@@ -3039,11 +2852,8 @@ html, body, .app-container { touch-action: manipulation; }
 .daily-login-desc,
 .breakdown-label,
 .breakdown-value,
-.weekly-label,
 .compare-name,
 .compare-value,
-.affinity-label,
-.affinity-score,
 .shop-currency-unit,
 .form-group label,
 .items-summary,
@@ -3059,117 +2869,6 @@ html, body, .app-container { touch-action: manipulation; }
 /* 吹き出しは、部屋に貼った小さな付箋のように */
 .room-dialogue-box p {
     font-size: 0.9rem;
-}
-
-/* ============================================================
-   カテゴリ別予算（v4）
-   ============================================================ */
-.budget-category-summary {
-    margin: 9px 0 0 0;
-    font-family: var(--font-hand);
-    font-size: 0.85rem;
-    color: var(--muted);
-    letter-spacing: 0.02em;
-}
-
-.budget-category-summary:empty {
-    display: none;
-}
-
-.budget-category-summary.is-over {
-    color: var(--danger);
-}
-
-.category-budget-actions {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    justify-content: space-between;
-    gap: 10px;
-    margin: 4px 0 14px 0;
-}
-
-.category-budget-actions .secondary-button {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    padding: 8px 12px;
-    font-size: 0.8rem;
-}
-
-.category-budget-actions .material-icons-round {
-    font-size: 17px;
-}
-
-.category-budget-total {
-    font-size: 0.8rem;
-    color: var(--ink-soft);
-    font-variant-numeric: tabular-nums;
-}
-
-.category-budget-total.is-over {
-    color: var(--danger);
-}
-
-.category-budget-list {
-    display: flex;
-    flex-direction: column;
-}
-
-.category-budget-row {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 12px;
-    padding: 11px 0;
-    border-bottom: 1px dashed var(--line);
-}
-
-.category-budget-main {
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-    min-width: 0;
-}
-
-.category-budget-name {
-    font-size: 0.92rem;
-    color: var(--ink);
-}
-
-.category-budget-spent {
-    font-size: 0.75rem;
-    color: var(--muted);
-}
-
-.category-budget-input-wrap {
-    display: flex;
-    align-items: center;
-    gap: 5px;
-    flex-shrink: 0;
-}
-
-.category-budget-input {
-    width: 116px;
-    padding: 8px 9px;
-    border: 1px solid var(--line-strong);
-    border-radius: 0;
-    background: var(--surface);
-    color: var(--ink);
-    font-family: var(--font-mono);
-    font-size: 1rem;
-    text-align: right;
-    outline: none;
-}
-
-.category-budget-input:focus {
-    border-color: var(--accent);
-    box-shadow: 0 0 0 3px rgba(95, 109, 78, 0.12);
-}
-
-.category-budget-unit {
-    font-size: 0.8rem;
-    color: var(--muted);
 }
 
 /* 内訳でカテゴリ予算と比較しているとき */
@@ -3237,16 +2936,6 @@ html, body, .app-container { touch-action: manipulation; }
     z-index: -1; pointer-events: none;
 }
 
-/* ---- 連続ログイン・親密度の説明 ---- */
-.affinity-note {
-    display: flex; flex-wrap: wrap; gap: 2px 10px;
-    margin: 2px 4px 0; font-size: 0.8rem; color: var(--ink-soft);
-}
-#login-streak-label { color: var(--accent); font-weight: 700; }
-#login-streak-label:empty { display: none; }
-.daily-login-streak { font-size: 1rem; font-weight: 700; color: var(--accent); }
-.daily-login-note { font-size: 0.8rem; color: var(--ink-soft); }
-
 /* ---- ガチャのコレクション：文字のコントラストを上げる ---- */
 .gacha-content .field-hint,
 .gacha-content .data-section-desc,
@@ -3256,3 +2945,77 @@ html, body, .app-container { touch-action: manipulation; }
 .gacha-content .field-hint { font-size: 0.85rem; }
 .collection-card.is-locked .collection-label { color: var(--ink-soft); }
 .collection-stars.r1 { color: var(--ink-soft); }
+
+
+/* ==========================================
+   v3.1 変更分
+========================================== */
+
+/* 所持ポイントの背景を消す */
+.currency-pill { background: transparent; padding-left: 0; }
+
+/* すべての画面をフルページ表示に統一 */
+.modal-overlay.shop-overlay { align-items: stretch; }
+.shop-overlay .modal-content {
+    width: 100%;
+    max-width: 640px;
+    height: 100%;
+    max-height: 100%;
+    border-radius: 0;
+    margin: 0 auto;
+}
+@media (max-width: 640px) {
+    .modal-overlay.shop-overlay { align-items: stretch; }
+    .shop-overlay .modal-content { max-height: 100%; }
+}
+
+/* ショップ：ポイント不足のときは購入ボタンをグレーアウト */
+.shop-card .shop-buy-btn:disabled {
+    background: #c9c9c9;
+    color: #8c8c8c;
+    opacity: 1;
+    cursor: not-allowed;
+}
+
+/* マイルーム編集：持ち物 */
+.room-editor-tray-items { gap: 12px; padding-bottom: 6px; }
+.tray-item {
+    width: 104px;
+    height: 104px;
+    background: rgba(255,255,255,0.08);
+}
+.tray-item img { max-width: 92%; max-height: 92%; }
+.tray-item .tray-item-plus {
+    background: transparent;
+    right: 4px;
+    bottom: 4px;
+    font-size: 22px !important;
+}
+
+/* マイルーム編集：選択中アイテムの操作バー */
+.room-editor-actions {
+    display: none;
+    flex-shrink: 0;
+    gap: 8px;
+    padding: 10px 14px 0 14px;
+    background: rgba(255,255,255,0.04);
+}
+.room-editor-actions.is-visible { display: flex; }
+.editor-action-btn {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    padding: 9px 4px;
+    border: 1px solid rgba(255,255,255,0.25);
+    background: transparent;
+    color: #fff;
+    font-size: 0.68rem;
+    font-family: var(--font-display);
+    cursor: pointer;
+    touch-action: manipulation;
+}
+.editor-action-btn .material-icons-round { font-size: 16px; }
+.editor-action-btn.is-confirm { background: var(--accent); border-color: var(--accent); }
+.editor-action-btn.is-danger { border-color: var(--danger); color: #ffb4b4; }

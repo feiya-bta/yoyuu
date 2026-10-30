@@ -380,7 +380,6 @@ function initApp() {
     renderBudgetSummary();
     renderCategorySelect();
     renderCategoryManageList();
-    renderFilterCategoryOptions();
     renderBudgetInputValue();
     renderExpenseTimeline();
     renderCharts();
@@ -480,20 +479,10 @@ function renderBudgetSummary() {
     const summaryBudget = document.getElementById("summary-budget");
     const remainingText = document.getElementById("budget-remaining-text");
     const heroLabel = document.getElementById("budget-hero-label");
-    const categorySummary = document.getElementById("budget-category-summary");
     const progressFill = document.getElementById("budget-progress-fill");
     const budgetBox = document.getElementById("budget-box");
     const fab = document.getElementById("fab-add-expense");
     const btnEditBudget = document.getElementById("btn-edit-budget");
-
-    const categoryBudgetTotal = Object.values(getCategoryBudgetMap(monthKey))
-        .reduce((sum, amount) => sum + (Number(amount) || 0), 0);
-    if (categorySummary) {
-        categorySummary.textContent = categoryBudgetTotal > 0
-            ? `カテゴリ予算の合計 ${categoryBudgetTotal.toLocaleString()} 円`
-            : "";
-        categorySummary.classList.toggle("is-over", budget > 0 && categoryBudgetTotal > budget);
-    }
 
     if (heroLabel) {
         heroLabel.textContent = isViewingCurrentMonth()
@@ -542,158 +531,6 @@ function renderBudgetSummary() {
     petWasOverBudget = isOverNow;
 
     refreshPetMood();
-}
-
-// ------------------------------------------
-// カテゴリ別予算
-// ------------------------------------------
-function getCategoryBudgetMap(monthKey) {
-    const map = appData.categoryBudget && appData.categoryBudget[monthKey];
-    return (map && typeof map === "object" && !Array.isArray(map)) ? map : {};
-}
-
-function getCategoryBudgetTotal(monthKey) {
-    return Object.values(getCategoryBudgetMap(monthKey))
-        .reduce((sum, amount) => sum + (Number(amount) || 0), 0);
-}
-
-// 過去 monthsBack か月の平均支出から、カテゴリ予算のたたき台を作る。
-// データが無い月は分母に入れない（1か月分しか無いのに 1/3 にならないように）。
-function suggestCategoryBudgets(expenses, categories, monthKey, monthsBack) {
-    const back = Math.max(1, Number(monthsBack) || 3);
-    const months = [];
-    for (let i = 0; i < back; i++) months.push(addMonths(monthKey, -i));
-    const monthSet = new Set(months);
-    const totals = {};
-    const monthsWithData = new Set();
-
-    (Array.isArray(expenses) ? expenses : []).forEach(exp => {
-        if (!exp || exp.deletedAt) return;
-        if (!monthSet.has(exp.monthKey)) return;
-        const cid = String(exp.categoryId);
-        totals[cid] = (totals[cid] || 0) + (Number(exp.amount) || 0);
-        monthsWithData.add(exp.monthKey);
-    });
-
-    const divisor = Math.max(1, monthsWithData.size);
-    const out = {};
-    (Array.isArray(categories) ? categories : []).forEach(cat => {
-        const average = (totals[String(cat.id)] || 0) / divisor;
-        if (average < 100) return;
-        out[String(cat.id)] = Math.round(average / 100) * 100;
-    });
-    return out;
-}
-
-function renderCategoryBudgetEditor() {
-    const list = document.getElementById("category-budget-list");
-    const desc = document.getElementById("category-budget-desc");
-    if (!list) return;
-
-    const monthKey = getViewMonthKey();
-    const budgets = getCategoryBudgetMap(monthKey);
-    const spentLabel = isViewingCurrentMonth() ? "今月" : formatMonthLabel(monthKey);
-    const spentByCategory = {};
-    expensesOfMonth(monthKey).forEach(exp => {
-        const cid = String(exp.categoryId);
-        spentByCategory[cid] = (spentByCategory[cid] || 0) + (Number(exp.amount) || 0);
-    });
-
-    if (desc) {
-        desc.textContent = `${formatMonthLabel(monthKey)}、カテゴリごとに使える金額を決めます。空欄のカテゴリは「決めない」になります。`;
-    }
-
-    list.innerHTML = "";
-    appData.categories.forEach(cat => {
-        const row = document.createElement("label");
-        row.className = "category-budget-row";
-        const amount = Number(budgets[String(cat.id)]) || 0;
-        const spent = spentByCategory[String(cat.id)] || 0;
-        row.innerHTML = `
-            <span class="category-budget-main">
-                <span class="category-budget-name">${escapeHtml(cat.name)}</span>
-                <span class="category-budget-spent">${spentLabel}の支出 ${spent.toLocaleString()} 円</span>
-            </span>
-            <span class="category-budget-input-wrap">
-                <input type="number" class="category-budget-input" data-cat-id="${escapeHtml(cat.id)}"
-                       value="${amount > 0 ? amount : ""}" min="0" step="100" placeholder="未設定"
-                       inputmode="numeric" aria-label="${escapeHtml(cat.name)}の予算">
-                <span class="category-budget-unit">円</span>
-            </span>
-        `;
-        list.appendChild(row);
-    });
-
-    updateCategoryBudgetTotal();
-}
-
-function updateCategoryBudgetTotal() {
-    const totalEl = document.getElementById("category-budget-total");
-    if (!totalEl) return;
-    let total = 0;
-    document.querySelectorAll("#category-budget-list .category-budget-input").forEach(input => {
-        const n = parseFloat(input.value);
-        if (isFinite(n) && n > 0) total += Math.round(n);
-    });
-    const monthKey = getViewMonthKey();
-    const budget = Number(appData.budget[monthKey]) || 0;
-    totalEl.textContent = budget > 0
-        ? `合計 ${total.toLocaleString()} 円 / 総予算 ${budget.toLocaleString()} 円`
-        : `合計 ${total.toLocaleString()} 円`;
-    totalEl.classList.toggle("is-over", budget > 0 && total > budget);
-}
-
-function openCategoryBudgetModal() {
-    renderCategoryBudgetEditor();
-    document.getElementById("modal-category-budget")?.classList.add("open");
-}
-
-function applySuggestedCategoryBudgets() {
-    const suggested = suggestCategoryBudgets(appData.expenses, appData.categories, getViewMonthKey(), 3);
-    const list = document.getElementById("category-budget-list");
-    if (!list) return;
-    list.querySelectorAll(".category-budget-input").forEach(input => {
-        const value = suggested[String(input.dataset.catId)];
-        input.value = value ? value : "";
-    });
-    updateCategoryBudgetTotal();
-    showToast(Object.keys(suggested).length > 0
-        ? "過去3か月の平均から提案しました。金額は自由に直せます"
-        : "提案できるだけの記録がまだありません");
-}
-
-function saveCategoryBudgets() {
-    const monthKey = getViewMonthKey();
-    if (!appData.categoryBudget || typeof appData.categoryBudget !== "object" || Array.isArray(appData.categoryBudget)) {
-        appData.categoryBudget = {};
-    }
-    if (!appData.categoryBudgetUpdatedAt || typeof appData.categoryBudgetUpdatedAt !== "object" || Array.isArray(appData.categoryBudgetUpdatedAt)) {
-        appData.categoryBudgetUpdatedAt = {};
-    }
-    const map = {};
-    document.querySelectorAll("#category-budget-list .category-budget-input").forEach(input => {
-        const catId = String(input.dataset.catId || "");
-        const amount = parseFloat(input.value);
-        if (!catId || !isFinite(amount) || amount <= 0) return;
-        map[catId] = Math.round(amount);
-    });
-
-    if (Object.keys(map).length > 0) {
-        appData.categoryBudget[monthKey] = map;
-        appData.categoryBudgetUpdatedAt[monthKey] = new Date().toISOString();
-    } else {
-        delete appData.categoryBudget[monthKey];
-        delete appData.categoryBudgetUpdatedAt[monthKey];
-    }
-
-    saveData();
-    document.getElementById("modal-category-budget")?.classList.remove("open");
-    renderBudgetSummary();
-    renderBreakdown();
-    renderCharts();
-    showToast(Object.keys(map).length > 0
-        ? `${formatMonthLabel(monthKey)}のカテゴリ予算を保存しました`
-        : "カテゴリ予算をクリアしました");
 }
 
 function renderBudgetInputValue() {
@@ -802,110 +639,6 @@ function deleteCategoryById(id) {
 // ==========================================
 // 4.5 絞り込み
 // ==========================================
-const DEFAULT_FILTER = {
-    keyword: "",
-    categoryId: "",
-    min: null,
-    max: null,
-    from: "",
-    to: "",
-    sort: "date-desc"
-};
-
-let expenseFilter = Object.assign({}, DEFAULT_FILTER);
-
-function isFilterActive() {
-    const f = expenseFilter;
-    return !!(f.keyword || f.categoryId || f.min !== null || f.max !== null || f.from || f.to);
-}
-
-function readFilterFromForm() {
-    const val = (id) => {
-        const el = document.getElementById(id);
-        return el ? String(el.value || "").trim() : "";
-    };
-    const num = (id) => {
-        const el = document.getElementById(id);
-        if (!el || el.value === "") return null;
-        const n = parseFloat(el.value);
-        return isNaN(n) ? null : n;
-    };
-    expenseFilter = {
-        keyword: val("filter-keyword").toLowerCase(),
-        categoryId: val("filter-category"),
-        min: num("filter-min"),
-        max: num("filter-max"),
-        from: val("filter-from"),
-        to: val("filter-to"),
-        sort: val("filter-sort") || DEFAULT_FILTER.sort
-    };
-}
-
-function matchesFilter(exp) {
-    const f = expenseFilter;
-    if (f.categoryId && String(exp.categoryId) !== f.categoryId) return false;
-
-    const amount = Number(exp.amount) || 0;
-    if (f.min !== null && amount < f.min) return false;
-    if (f.max !== null && amount > f.max) return false;
-
-    const day = exp.dateKey || localDateKey(exp.datetime);
-    if (f.from && day < f.from) return false;
-    if (f.to && day > f.to) return false;
-
-    if (f.keyword) {
-        const haystack = [
-            exp.memo || "",
-            exp.store || "",
-            ...(Array.isArray(exp.items) ? exp.items.map(it => it.name || "") : [])
-        ].join(" ").toLowerCase();
-        if (haystack.indexOf(f.keyword) === -1) return false;
-    }
-    return true;
-}
-
-function applyFilter(expenses) {
-    const sorters = {
-        "date-desc": (a, b) => String(b.datetime).localeCompare(String(a.datetime)),
-        "date-asc": (a, b) => String(a.datetime).localeCompare(String(b.datetime)),
-        "amount-desc": (a, b) => (Number(b.amount) || 0) - (Number(a.amount) || 0),
-        "amount-asc": (a, b) => (Number(a.amount) || 0) - (Number(b.amount) || 0)
-    };
-    const sorter = sorters[expenseFilter.sort] || sorters["date-desc"];
-    return expenses.filter(matchesFilter).sort(sorter);
-}
-
-function renderFilterCategoryOptions() {
-    const select = document.getElementById("filter-category");
-    if (!select) return;
-    const prev = select.value;
-    select.innerHTML = `<option value="">すべてのカテゴリ</option>` +
-        appData.categories
-            .map(c => `<option value="${escapeHtml(c.id)}">${escapeHtml(c.name)}</option>`)
-            .join("");
-    if (appData.categories.some(c => String(c.id) === prev)) select.value = prev;
-}
-
-function clearFilter() {
-    expenseFilter = Object.assign({}, DEFAULT_FILTER);
-    ["filter-keyword", "filter-min", "filter-max", "filter-from", "filter-to"].forEach(id => {
-        const el = document.getElementById(id);
-        if (el) el.value = "";
-    });
-    const cat = document.getElementById("filter-category");
-    if (cat) cat.value = "";
-    const sort = document.getElementById("filter-sort");
-    if (sort) sort.value = DEFAULT_FILTER.sort;
-    renderExpenseTimeline();
-}
-
-function updateFilterIndicator(count, total) {
-    const el = document.getElementById("filter-count");
-    if (!el) return;
-    el.textContent = isFilterActive()
-        ? `${count}件 / ${total.toLocaleString()}円`
-        : "";
-}
 
 // ==========================================
 // 5. 支出タイムライン
@@ -922,7 +655,6 @@ function renderExpenseTimeline() {
     const monthExpenses = expensesOfMonth(monthKey);
 
     if (monthExpenses.length === 0) {
-        updateFilterIndicator(0, 0);
         container.innerHTML = `<p class="timeline-empty-hint">${
             isViewingCurrentMonth() ? "今月の支出はまだ記録されていません"
                                     : `${formatMonthLabel(monthKey)}の支出は記録されていません`
@@ -930,15 +662,8 @@ function renderExpenseTimeline() {
         return;
     }
 
-    const visible = applyFilter(monthExpenses);
-    updateFilterIndicator(visible.length, visible.reduce((s, e) => s + (Number(e.amount) || 0), 0));
-
-    if (visible.length === 0) {
-        container.innerHTML = `<p class="timeline-empty-hint">条件に合う支出がありません</p>`;
-        return;
-    }
-
-    const sorted = visible;
+    const sorted = monthExpenses.slice()
+        .sort((a, b) => String(b.datetime).localeCompare(String(a.datetime)));
 
     let lastDateKey = null;
     sorted.forEach(exp => {
@@ -1002,10 +727,8 @@ function renderBreakdown() {
 
     const monthKey = getViewMonthKey();
     const monthExpenses = expensesOfMonth(monthKey);
-    const categoryBudgets = getCategoryBudgetMap(monthKey);
-    const budgetIds = Object.keys(categoryBudgets);
 
-    if (monthExpenses.length === 0 && budgetIds.length === 0) {
+    if (monthExpenses.length === 0) {
         list.innerHTML = `<p class="breakdown-empty">${
             isViewingCurrentMonth() ? "今月の支出はまだありません"
                                     : `${formatMonthLabel(monthKey)}の支出はありません`
@@ -1019,33 +742,19 @@ function renderBreakdown() {
         totals[key] = (totals[key] || 0) + (Number(e.amount) || 0);
     });
 
-    const ids = new Set([...Object.keys(totals), ...budgetIds]);
-    const entries = [...ids]
-        .map(cid => ({
-            cat: getCategoryById(cid) || { name: "不明" },
-            amt: totals[cid] || 0,
-            cap: Number(categoryBudgets[cid]) || 0
-        }))
+    const entries = Object.keys(totals)
+        .map(cid => ({ cat: getCategoryById(cid) || { name: "不明" }, amt: totals[cid] }))
         .sort((a, b) => b.amt - a.amt);
 
     const max = Math.max(1, ...entries.map(entry => entry.amt));
-    entries.forEach(({ cat, amt, cap }) => {
-        const hasCap = cap > 0;
-        const ratio = hasCap ? amt / cap : 0;
-        const pct = hasCap
-            ? Math.min(100, Math.round(ratio * 100))
-            : Math.max(4, Math.round((amt / max) * 100));
-        const stateClass = hasCap && ratio > 0.8 ? " is-over" : "";
-        const value = hasCap
-            ? `${amt.toLocaleString()} / ${cap.toLocaleString()} 円`
-            : `${amt.toLocaleString()} 円`;
-
+    entries.forEach(({ cat, amt }) => {
+        const pct = Math.max(4, Math.round((amt / max) * 100));
         const row = document.createElement("div");
-        row.className = `breakdown-row${stateClass}`;
+        row.className = "breakdown-row";
         row.innerHTML = `
             <span class="breakdown-label">${escapeHtml(cat.name)}</span>
             <span class="breakdown-track"><span class="breakdown-fill" style="width:${pct}%"></span></span>
-            <span class="breakdown-value">${value}</span>
+            <span class="breakdown-value">${amt.toLocaleString()} 円</span>
         `;
         list.appendChild(row);
     });
@@ -1321,13 +1030,8 @@ function setupEventListeners() {
                 spawnPetReaction("favorite");
                 petSay(getPetLine("idle", "更新した！"));
             } else {
-                const affinity = addAffinityForRecord();
-                const today = getAffinity();
-                const rank = getAffinityRank(today.score);
-                let line = "記録できた！100ptゲット。えらい";
-                if (affinity.bonus > 0) line = `連続記録ボーナス！${rank.label}になったよ`;
-                else if (affinity.gained <= 0) line = "記録できた！";
-                petSay(getPetLine("idle", line));
+                petCelebrate();
+                petSay(getPetLine("idle", "記録できた！100ptゲット。えらい"));
                 playCoin();
             }
             vibrate(25);
@@ -1336,15 +1040,6 @@ function setupEventListeners() {
             if (!editId && typeof onboardingNotify === "function") onboardingNotify("expense");
         });
     }
-
-    // カテゴリ別予算
-    document.getElementById("btn-open-category-budget")?.addEventListener("click", openCategoryBudgetModal);
-    document.getElementById("btn-close-category-budget")?.addEventListener("click", () => {
-        document.getElementById("modal-category-budget")?.classList.remove("open");
-    });
-    document.getElementById("btn-save-category-budget")?.addEventListener("click", saveCategoryBudgets);
-    document.getElementById("btn-suggest-category-budget")?.addEventListener("click", applySuggestedCategoryBudgets);
-    document.getElementById("category-budget-list")?.addEventListener("input", updateCategoryBudgetTotal);
 
     const btnOpenCategory = document.getElementById("btn-open-category");    if (btnOpenCategory) {
         btnOpenCategory.addEventListener("click", () => {
@@ -1507,22 +1202,6 @@ function setupEventListeners() {
             amountEl.value = total;
             validateExpenseInput();
         }
-    });
-
-    ["filter-keyword", "filter-category", "filter-min", "filter-max",
-     "filter-from", "filter-to", "filter-sort"].forEach(id => {
-        const el = document.getElementById(id);
-        if (!el) return;
-        const evt = el.tagName === "SELECT" ? "change" : "input";
-        el.addEventListener(evt, () => {
-            readFilterFromForm();
-            renderExpenseTimeline();
-        });
-    });
-    document.getElementById("btn-clear-filter")?.addEventListener("click", clearFilter);
-    document.getElementById("btn-toggle-filter")?.addEventListener("click", () => {
-        const panel = document.getElementById("filter-panel");
-        if (panel) panel.classList.toggle("open");
     });
 
     document.getElementById("btn-open-planner")?.addEventListener("click", openPlannerModal);
@@ -1762,7 +1441,6 @@ function refreshAfterExpenseChange() {
 function refreshCategoryViews() {
     renderCategoryManageList();
     renderCategorySelect();
-    renderFilterCategoryOptions();
     renderMoneyViews();
 }
 
@@ -1839,7 +1517,6 @@ function importAnyCsvFile(file) {
                 if (result.skippedDuplicates) notes.push(`重複 ${result.skippedDuplicates}件はスキップ`);
                 if (result.addedCategories) notes.push(`カテゴリ ${result.addedCategories}件`);
                 if (result.updatedBudgets) notes.push(`予算 ${result.updatedBudgets}件`);
-                if (result.updatedCategoryBudgets) notes.push(`カテゴリ予算 ${result.updatedCategoryBudgets}件`);
                 if (result.roomImported) notes.push("マイルーム");
                 statusEl.textContent = notes.length > 0
                     ? `統合CSVを読み込みました：${notes.join(" ／ ")}`
@@ -1988,16 +1665,6 @@ function buildUnifiedCsvText() {
         lines.push([csvEscape(key), appData.budget[key]].join(","));
     });
 
-    lines.push("");
-    lines.push("# CATEGORY_BUDGETS");
-    lines.push("month,categoryId,categoryName,amount");
-    Object.keys(appData.categoryBudget || {}).sort().forEach(monthKey => {
-        const map = appData.categoryBudget[monthKey] || {};
-        Object.keys(map).forEach(cid => {
-            const cat = getCategoryById(cid);
-            lines.push([monthKey, cid, cat ? cat.name : "", map[cid]].map(csvEscape).join(","));
-        });
-    });
 
     lines.push("");
     lines.push("# EXPENSES");
@@ -2087,7 +1754,6 @@ function importUnifiedCsvText(text) {
     let addedExpenses = 0;
     let addedCategories = 0;
     let updatedBudgets = 0;
-    let updatedCategoryBudgets = 0;
     let roomImported = false;
     let skippedDuplicates = 0;
 
@@ -2117,38 +1783,6 @@ function importUnifiedCsvText(text) {
         updatedBudgets++;
     });
 
-    // --- カテゴリ別予算 ---
-    if (sections.categoryBudgets.length > 1) {
-        if (!appData.categoryBudget || typeof appData.categoryBudget !== "object" || Array.isArray(appData.categoryBudget)) {
-            appData.categoryBudget = {};
-        }
-        if (!appData.categoryBudgetUpdatedAt || typeof appData.categoryBudgetUpdatedAt !== "object" || Array.isArray(appData.categoryBudgetUpdatedAt)) {
-            appData.categoryBudgetUpdatedAt = {};
-        }
-
-        sections.categoryBudgets.slice(1).forEach(row => {
-            const month = String(row[0] || "").trim();
-            const id = String(row[1] || "").trim();
-            const name = String(row[2] || "").trim();
-            const amount = parseFloat(row[3]);
-            if (!/^\d{4}-\d{2}$/.test(month)) return;
-            if (isNaN(amount) || amount <= 0) return;
-
-            let category = appData.categories.find(c => id && String(c.id) === id)
-                || appData.categories.find(c => name && c.name === name);
-            if (!category && (id || name)) {
-                category = { id: id || newId(), name: name || "その他" };
-                appData.categories.push(category);
-                addedCategories++;
-            }
-            if (!category) return;
-
-            if (!appData.categoryBudget[month]) appData.categoryBudget[month] = {};
-            appData.categoryBudget[month][String(category.id)] = Math.round(amount);
-            appData.categoryBudgetUpdatedAt[month] = new Date().toISOString();
-            updatedCategoryBudgets++;
-        });
-    }
 
     // --- 支出（既存の CSV パーサを流用） ---
     if (sections.expenses.length > 1) {
@@ -2188,7 +1822,7 @@ function importUnifiedCsvText(text) {
                 type: map.petType,
                 name: map.petName || petDefaultName(map.petType),
                 x: parseFloat(map.petX) || 50,
-                y: parseFloat(map.petY) || 85,
+                y: isFinite(parseFloat(map.petY)) ? parseFloat(map.petY) : PET_FLOOR_Y,
                 scale: parseFloat(map.petScale) || 1
             };
         }
@@ -2221,13 +1855,13 @@ function importUnifiedCsvText(text) {
         renderCurrency();
     }
 
-    return { addedExpenses, addedCategories, updatedBudgets, updatedCategoryBudgets, roomImported, skippedDuplicates };
+    return { addedExpenses, addedCategories, updatedBudgets, roomImported, skippedDuplicates };
 }
 
 function resetCurrentMonthData() {
     const monthKey = getCurrentMonthKey();
     const label = formatMonthLabel(monthKey);
-    if (!confirm(`${label}の支出と予算（カテゴリ別予算を含む）をすべて削除します。よろしいですか？`)) return;
+    if (!confirm(`${label}の支出と予算をすべて削除します。よろしいですか？`)) return;
 
     const now = new Date().toISOString();
     const imageIds = [];
@@ -2316,15 +1950,12 @@ function refreshAllViews() {
     renderBudgetInputValue();
     renderCategorySelect();
     renderCategoryManageList();
-    renderFilterCategoryOptions();
     renderExpenseTimeline();
     renderCharts();
     renderPlanCard();
     renderStorageInfo();
     renderRoomPreview();
     renderCurrency();
-    renderAffinity();
-    renderLoginStreak();
     renderBackupBanner();
 }
 
@@ -2344,30 +1975,11 @@ function renderCharts() {
         noteEl.textContent = stats.total > 0 ? `合計 ${stats.total.toLocaleString()}円` : "";
     }
 
-    const summaryEl = document.getElementById("chart-summary");
-    if (summaryEl) {
-        if (stats.total <= 0) {
-            summaryEl.textContent = "";
-        } else {
-            const parts = [`1日あたり 約${stats.averagePerDay.toLocaleString()}円`];
-            if (stats.averagePerActiveDay > 0) parts.push(`記録した日は 約${stats.averagePerActiveDay.toLocaleString()}円`);
-            if (stats.maxTotal > 0) parts.push(`最大は${stats.maxDay}日（${stats.maxTotal.toLocaleString()}円）`);
-            summaryEl.textContent = parts.join(" ／ ");
-        }
-    }
-
     const chartEl = document.getElementById("daily-chart");
     if (chartEl) {
         chartEl.innerHTML = stats.total > 0
             ? buildDailyBarSvg(stats.daily, { averageOverDays: stats.elapsedDays })
             : `<div class="chart-empty">この月の支出はまだありません</div>`;
-    }
-
-    const weeklyEl = document.getElementById("weekly-list");
-    if (weeklyEl) {
-        weeklyEl.innerHTML = stats.total > 0
-            ? buildWeeklyListHtml(getWeeklyTotals(monthExpenses, monthKey))
-            : `<p class="breakdown-empty">週別のデータがありません</p>`;
     }
 
     const compareEl = document.getElementById("compare-list");
@@ -2849,11 +2461,7 @@ function roomExtraCsvPairs() {
         ["ownedMaps", (roomData.ownedMaps || []).join("|")],
         ["mapId", roomData.mapId || "default"],
         ["petNames", names],
-        ["gachaPulls", (roomData.gacha && roomData.gacha.pulls) || 0],
-        ["loginStreakCount", (roomData.loginStreak && roomData.loginStreak.count) || 0],
-        ["loginStreakDate", (roomData.loginStreak && roomData.loginStreak.lastDate) || ""],
-        ["affinityScore", getAffinity().score],
-        ["affinityTotal", getAffinity().total]
+        ["gachaPulls", (roomData.gacha && roomData.gacha.pulls) || 0]
     ];
 }
 
@@ -2867,14 +2475,6 @@ function applyRoomExtrasFromCsvMap(room, map) {
         if (i > 0) room.petNames[pair.slice(0, i)] = pair.slice(i + 1);
     });
     room.gacha = { pulls: parseInt(map.gachaPulls, 10) || 0 };
-    room.loginStreak = { count: parseInt(map.loginStreakCount, 10) || 0, lastDate: map.loginStreakDate || null };
-    if (map.affinityScore !== undefined) {
-        room.affinity = {
-            score: parseInt(map.affinityScore, 10) || 0,
-            total: parseInt(map.affinityTotal, 10) || 0,
-            todayDate: null, todayGain: 0, streakBonusDate: null
-        };
-    }
 }
 
 const PET_FLOOR_Y = 82;
@@ -2889,15 +2489,7 @@ const PET_CHAT = {
 
 let roomDragMoved = false;
 
-const DEFAULT_AFFINITY = {
-    score: 0,
-    total: 0,
-    todayDate: null,
-    todayGain: 0,
-    streakBonusDate: null
-};
 
-const AFFINITY_DAILY_CAP = 5;
 
 const DEFAULT_ROOM_DATA = {
     points: 8888,
@@ -2910,8 +2502,6 @@ const DEFAULT_ROOM_DATA = {
     ownedMaps: ["default"],
     mapId: "default",
     gacha: { pulls: 0 },
-    loginStreak: { count: 0, lastDate: null },
-    affinity: null,
     mini: null
 };
 
@@ -2932,7 +2522,8 @@ function normalizeRoomData(raw) {
         if (!d.pet.name) d.pet.name = petDefaultName(d.pet.type);
         if (typeof d.pet.x !== "number") d.pet.x = 50;
         if (typeof d.pet.scale !== "number") d.pet.scale = 1;
-        d.pet.y = PET_FLOOR_Y;
+        if (typeof d.pet.y !== "number" || !isFinite(d.pet.y)) d.pet.y = PET_FLOOR_Y;
+        d.pet.y = Math.min(100, Math.max(0, d.pet.y));
     } else {
         d.pet = null;
     }
@@ -2966,24 +2557,8 @@ function normalizeRoomData(raw) {
     if (d.pet && d.pet.x > 100) d.pet.x = d.pet.x / 2;
     d.placedItems.forEach(it => { if (it.x > 100) it.x = it.x / 2; });
 
-    if (!d.affinity || typeof d.affinity !== "object" || Array.isArray(d.affinity)) {
-        d.affinity = JSON.parse(JSON.stringify(DEFAULT_AFFINITY));
-    } else {
-        const a = d.affinity;
-        d.affinity = {
-            score: Math.max(0, Math.min(100, Number(a.score) || 0)),
-            total: Math.max(0, Number(a.total) || 0),
-            todayDate: a.todayDate || null,
-            todayGain: Math.max(0, Number(a.todayGain) || 0),
-            streakBonusDate: a.streakBonusDate || null
-        };
-    }
-
-    const ls = d.loginStreak;
-    d.loginStreak = {
-        count: Math.max(0, Math.floor(Number(ls && ls.count) || 0)),
-        lastDate: (ls && typeof ls.lastDate === "string") ? ls.lastDate : null
-    };
+    delete d.affinity;
+    delete d.loginStreak;
 
     delete d.mini;
     delete d.floating;
@@ -3076,8 +2651,7 @@ function getPetContext(now) {
         moodWarn: ratio !== null && ratio > 0.8 && ratio < 1,
         hasToy: toys.length > 0,
         nearestToyX: nearestToyX,
-        canWalk: !editorOpen,
-        affinity: getAffinityScore()
+        canWalk: !editorOpen
     };
 }
 
@@ -3118,7 +2692,6 @@ function chooseNextPetState(current, ctx, random) {
         if (name === "sit" && c.moodOver) weight *= 1.8;
         if (name === "nap" && c.isNight) weight *= 2.4;
         if (name === "stretch" && c.isMorning) weight *= 2.2;
-        if (name === "play" && c.affinity >= 60) weight *= 1.4;
 
         candidates.push({ name: name, weight: weight });
     });
@@ -3226,6 +2799,11 @@ function petInterrupt(state, options) {
     return setPetState(state, opts);
 }
 
+function getPetY() {
+    const y = roomData.pet && Number(roomData.pet.y);
+    return (typeof y === "number" && isFinite(y)) ? Math.min(100, Math.max(0, y)) : PET_FLOOR_Y;
+}
+
 function petMoveTo(targetX) {
     const el = document.querySelector("#room-scene-preview .pet-item");
     if (!el || !roomData.pet) return;
@@ -3234,10 +2812,9 @@ function petMoveTo(targetX) {
     const clamped = Math.max(10, Math.min(90, targetX));
     el.style.setProperty("--flip", clamped < curX ? -1 : 1);
     el.style.left = clamped + "%";
-    el.style.top = PET_FLOOR_Y + "%";
+    el.style.top = getPetY() + "%";
 
     roomData.pet.x = clamped;
-    roomData.pet.y = PET_FLOOR_Y;
     saveRoomData(false);
 }
 
@@ -3313,7 +2890,6 @@ function petStroke() {
         return;
     }
     setPetState("petted", { silent: true });
-    addAffinity(1, "stroke");
 }
 
 function petWakeUp() {
@@ -3322,89 +2898,6 @@ function petWakeUp() {
     setPetState("stretch", { silent: true });
     petSay(getPetLine("idle", "ふぁ…おきた"));
     return true;
-}
-
-// ==========================================
-// 親密度
-// ==========================================
-function getAffinity() {
-    if (!roomData.affinity || typeof roomData.affinity !== "object") {
-        roomData.affinity = JSON.parse(JSON.stringify(DEFAULT_AFFINITY));
-    }
-    return roomData.affinity;
-}
-
-function getAffinityScore() {
-    return getAffinity().score;
-}
-
-function getAffinityRank(score) {
-    const s = score === undefined ? getAffinityScore() : Number(score) || 0;
-    if (s >= 80) return { level: 5, label: "ベストフレンド" };
-    if (s >= 60) return { level: 4, label: "なかよし" };
-    if (s >= 40) return { level: 3, label: "ともだち" };
-    if (s >= 20) return { level: 2, label: "なれてきた" };
-    if (s >= 5)  return { level: 1, label: "かおなじみ" };
-    return { level: 0, label: "はじめまして" };
-}
-
-function addAffinity(amount, reason) {
-    const a = getAffinity();
-    const today = localDateKey(new Date());
-    if (a.todayDate !== today) {
-        a.todayDate = today;
-        a.todayGain = 0;
-    }
-
-    let gain = Math.max(0, Number(amount) || 0);
-
-    if (reason === "record" || reason === "stroke") {
-        const rest = Math.max(0, AFFINITY_DAILY_CAP - a.todayGain);
-        gain = Math.min(gain, rest);
-    }
-    if (gain <= 0) return 0;
-
-    a.todayGain += gain;
-    a.total += gain;
-    const before = a.score;
-    a.score = Math.min(100, a.score + gain);
-
-    saveRoomData(false);
-    renderAffinity();
-    return a.score - before;
-}
-
-function addAffinityForRecord() {
-    const gained = addAffinity(1, "record");
-
-    let bonus = 0;
-    const a = getAffinity();
-    const today = localDateKey(new Date());
-    const streak = getRecordingStreak();
-    if (streak > 0 && streak % 3 === 0 && a.streakBonusDate !== today) {
-        a.streakBonusDate = today;
-        bonus = addAffinity(2, "streak");
-    }
-
-    if (gained + bonus > 0) petCelebrate();
-    return { gained: gained, bonus: bonus };
-}
-
-function renderAffinity() {
-    const a = getAffinity();
-    const rank = getAffinityRank(a.score);
-
-    const fillEl = document.getElementById("affinity-fill");
-    if (fillEl) fillEl.style.width = `${a.score}%`;
-
-    const scoreEl = document.getElementById("affinity-score");
-    if (scoreEl) scoreEl.textContent = String(a.score);
-
-    const labelEl = document.getElementById("affinity-label");
-    if (labelEl) labelEl.textContent = rank.label;
-
-    const box = document.getElementById("affinity-box");
-    if (box) box.dataset.level = String(rank.level);
 }
 
 // ==========================================
@@ -3821,8 +3314,7 @@ function buildPetSystemPrompt() {
         `やさしく素直な口調で、必ず日本語で、1〜2文・60文字以内で返事をする。語尾は「${kind.gobi}」で終える。`,
         "飼い主を責めたり説教したりしない。投資・借金・法律などの専門的な助言はせず、詳しい人に聞くようやんわり促す。",
         "APIキーや設定の話題には答えない。",
-        money,
-        `なつき度は100点中${getAffinityScore()}点。`
+        money
     ].join("\n");
 }
 
@@ -3945,8 +3437,6 @@ function initRoomSystem() {
     renderRoomPreview();
     centerRoomPreviewOnPet();
     preloadPetSleepGif();
-    renderAffinity();
-    renderLoginStreak();
     startPetLifeLoops();
 
     if (roomData.pet && !petIsAsleep) {
@@ -3999,44 +3489,16 @@ function confirmPetName() {
     if (typeof startOnboarding === "function") startOnboarding(false);
 }
 
-// ==========================================
-// デイリーログインボーナス
-// ==========================================
-// 連続ログイン日数。昨日ログインしていれば +1、1日でも空くと 1 に戻る。
-function currentLoginStreak() {
-    const st = roomData.loginStreak || { count: 0, lastDate: null };
-    if (!st.lastDate) return 0;
-    const y = new Date();
-    y.setDate(y.getDate() - 1);
-    return (st.lastDate === todayDateKey() || st.lastDate === localDateKey(y)) ? st.count : 0;
-}
-
-function nextLoginStreak() {
-    const st = roomData.loginStreak || { count: 0, lastDate: null };
-    if (st.lastDate === todayDateKey()) return Math.max(1, st.count);
-    return currentLoginStreak() > 0 ? st.count + 1 : 1;
-}
-
-function renderLoginStreak() {
-    const el = document.getElementById("login-streak-label");
-    const n = currentLoginStreak();
-    if (el) el.textContent = n > 0 ? `連続ログイン ${n}日` : "";
-}
-
 function maybeShowDailyLoginBonus() {
     if (roomData.lastLoginDate === todayDateKey()) return;
-    const streakEl = document.getElementById("daily-login-streak");
-    if (streakEl) streakEl.textContent = `連続ログイン ${nextLoginStreak()}日目`;
     document.getElementById("modal-daily-login")?.classList.add("open");
 }
 
 function claimDailyLoginBonus() {
     roomData.points += 200;
-    roomData.loginStreak = { count: nextLoginStreak(), lastDate: todayDateKey() };
     roomData.lastLoginDate = todayDateKey();
     saveRoomData();
     renderCurrency();
-    renderLoginStreak();
     playCoin();
     vibrate(25);
     document.getElementById("modal-daily-login")?.classList.remove("open");
@@ -4124,7 +3586,7 @@ function createPetElement(interactive, container) {
     const stateCls = (PET_STATES[petState] && PET_STATES[petState].cls) || "";
     el.className = "room-item pet-item" + (stateCls ? " " + stateCls : "") + (sleeping ? " is-sleeping" : "");
     el.style.left = roomData.pet.x + "%";
-    el.style.top = PET_FLOOR_Y + "%";
+    el.style.top = getPetY() + "%";
     el.style.setProperty("--scale", roomData.pet.scale || 1);
     el.style.zIndex = PET_Z;
     el.innerHTML = `
@@ -4262,45 +3724,49 @@ function placeItemToCenter(uid) {
 }
 
 function makeItemDraggable(el, uid, canvas) {
-    let dragging = false;
-    let startX, startY, origLeftPct, origTopPct;
+    const clamp = (v) => Math.min(100, Math.max(0, v));
 
     el.addEventListener("pointerdown", (e) => {
-        if (e.target.closest(".resize-handle") || e.target.closest(".item-controls")) return;
+        if (e.target.closest(".resize-handle")) return;
+        if (e.pointerType === "mouse" && e.button !== 0) return;
         e.preventDefault();
         selectRoomItem(uid);
-        dragging = true;
-        startX = e.clientX;
-        startY = e.clientY;
-        origLeftPct = parseFloat(el.style.left);
-        origTopPct = parseFloat(el.style.top);
-        el.setPointerCapture(e.pointerId);
-    });
 
-    el.addEventListener("pointermove", (e) => {
-        if (!dragging || !canvas) return;
-        const rect = canvas.getBoundingClientRect();
-        const dxPct = ((e.clientX - startX) / rect.width) * 100;
-        const dyPct = ((e.clientY - startY) / rect.height) * 100;
-        let newLeft = Math.min(100, Math.max(0, origLeftPct + dxPct));
-        let newTop = uid === "pet" ? PET_FLOOR_Y : Math.min(100, Math.max(0, origTopPct + dyPct));
-        el.style.left = newLeft + "%";
-        el.style.top = newTop + "%";
-    });
+        const area = canvas || el.parentElement;
+        const pointerId = e.pointerId;
+        const startX = e.clientX;
+        const startY = e.clientY;
+        const origLeft = parseFloat(el.style.left) || 0;
+        const origTop = parseFloat(el.style.top) || 0;
+        try { el.setPointerCapture(pointerId); } catch (_) {}
 
-    const endDrag = () => {
-        if (!dragging) return;
-        dragging = false;
-        persistItemPosition(uid, parseFloat(el.style.left), parseFloat(el.style.top));
-    };
-    el.addEventListener("pointerup", endDrag);
-    el.addEventListener("pointercancel", endDrag);
+        // 上・左・右・下のどちらにも動かせるよう、移動量は常に「開始位置からの差」で計算し、
+        // 受け取りは window で行う（要素の外に指が出ても止まらない）
+        const onMove = (ev) => {
+            if (ev.pointerId !== pointerId) return;
+            const rect = area.getBoundingClientRect();
+            if (!rect.width || !rect.height) return;
+            el.style.left = clamp(origLeft + ((ev.clientX - startX) / rect.width) * 100) + "%";
+            el.style.top = clamp(origTop + ((ev.clientY - startY) / rect.height) * 100) + "%";
+        };
+        const onEnd = (ev) => {
+            if (ev.pointerId !== pointerId) return;
+            window.removeEventListener("pointermove", onMove);
+            window.removeEventListener("pointerup", onEnd);
+            window.removeEventListener("pointercancel", onEnd);
+            try { el.releasePointerCapture(pointerId); } catch (_) {}
+            persistItemPosition(uid, parseFloat(el.style.left), parseFloat(el.style.top));
+        };
+        window.addEventListener("pointermove", onMove);
+        window.addEventListener("pointerup", onEnd);
+        window.addEventListener("pointercancel", onEnd);
+    });
 }
 
 function persistItemPosition(uid, x, y) {
     if (uid === "pet") {
         roomData.pet.x = x;
-        roomData.pet.y = PET_FLOOR_Y;
+        roomData.pet.y = y;
     } else {
         const item = roomData.placedItems.find(it => it.uid === uid);
         if (item) { item.x = x; item.y = y; }
@@ -4314,6 +3780,7 @@ function selectRoomItem(uid) {
         el.classList.toggle("selected", el.dataset.uid === uid);
     });
     attachSelectionControls(uid);
+    updateEditorActions();
 }
 
 function deselectRoomItem() {
@@ -4322,70 +3789,49 @@ function deselectRoomItem() {
         el.classList.remove("selected");
         const handle = el.querySelector(".resize-handle");
         if (handle) handle.remove();
-        const controls = el.querySelector(".item-controls");
-        if (controls) controls.remove();
     });
+    updateEditorActions();
+}
+
+// 選択中のアイテム用の操作バー（アイテムの外にあるので、重なっても押せる）
+function updateEditorActions() {
+    const bar = document.getElementById("room-editor-actions");
+    if (!bar) return;
+    const uid = roomEditorSelectedUid;
+    bar.classList.toggle("is-visible", !!uid);
+    const removeBtn = document.getElementById("btn-item-remove");
+    if (removeBtn) removeBtn.style.display = uid === "pet" ? "none" : "";
 }
 
 function attachSelectionControls(uid) {
     const el = document.querySelector(`#room-editor-canvas .room-item[data-uid="${uid}"]`);
     if (!el) return;
+    if (el.querySelector(".resize-handle")) return;
 
-    if (!el.querySelector(".resize-handle")) {
-        const handle = document.createElement("div");
-        handle.className = "resize-handle";
-        handle.addEventListener("pointerdown", (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            handle.setPointerCapture(e.pointerId);
-            const startX = e.clientX;
-            const startScale = getCurrentScale(uid);
+    const handle = document.createElement("div");
+    handle.className = "resize-handle";
+    handle.addEventListener("pointerdown", (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        handle.setPointerCapture(e.pointerId);
+        const startX = e.clientX;
+        const startScale = getCurrentScale(uid);
 
-            const onMove = (ev) => {
-                const delta = (ev.clientX - startX) / 100;
-                const newScale = Math.min(2.5, Math.max(0.4, startScale + delta));
-                el.style.setProperty("--scale", newScale);
-            };
-            const onUp = () => {
-                const finalScale = parseFloat(el.style.getPropertyValue("--scale")) || 1;
-                persistItemScale(uid, finalScale);
-                handle.removeEventListener("pointermove", onMove);
-                handle.removeEventListener("pointerup", onUp);
-            };
-            handle.addEventListener("pointermove", onMove);
-            handle.addEventListener("pointerup", onUp);
-        });
-        el.appendChild(handle);
-    }
-
-    if (!el.querySelector(".item-controls") && uid !== "pet") {
-        const item = roomData.placedItems.find(it => it.uid === uid);
-        const isInFrontOfPet = (item ? (item.z || 1) : 1) > PET_Z;
-        const controls = document.createElement("div");
-        controls.className = "item-controls";
-        controls.innerHTML = `
-            <button class="item-control-btn layer-up" title="1段階前へ"><span class="material-icons-round">arrow_upward</span></button>
-            <button class="item-control-btn layer-down" title="1段階後ろへ"><span class="material-icons-round">arrow_downward</span></button>
-            <button class="item-control-btn layer-toggle" title="ペットの前後を切り替え"><span class="material-icons-round">${isInFrontOfPet ? "flip_to_back" : "flip_to_front"}</span></button>
-            <button class="item-control-btn confirm" title="配置を確定"><span class="material-icons-round">check</span></button>
-            <button class="item-control-btn remove" title="持ち物に戻す"><span class="material-icons-round">inventory_2</span></button>
-        `;
-        controls.querySelector(".layer-up").addEventListener("pointerdown", (e) => { e.stopPropagation(); changeItemLayer(uid, 1); });
-        controls.querySelector(".layer-down").addEventListener("pointerdown", (e) => { e.stopPropagation(); changeItemLayer(uid, -1); });
-        controls.querySelector(".layer-toggle").addEventListener("pointerdown", (e) => { e.stopPropagation(); toggleLayerAcrossPet(uid); });
-        controls.querySelector(".confirm").addEventListener("pointerdown", (e) => { e.stopPropagation(); deselectRoomItem(); });
-        controls.querySelector(".remove").addEventListener("pointerdown", (e) => {
-            e.stopPropagation();
-            returnItemToInventory(uid);
-        });
-        el.appendChild(controls);
-    } else if (!el.querySelector(".item-controls")) {
-        const controls = document.createElement("div");
-        controls.className = "item-controls";
-        controls.innerHTML = `<button class="item-control-btn confirm" title="確定"><span class="material-icons-round">check</span></button>`;
-        controls.querySelector(".confirm").addEventListener("pointerdown", (e) => { e.stopPropagation(); deselectRoomItem(); });
-        el.appendChild(controls);
-    }
+        const onMove = (ev) => {
+            const delta = (ev.clientX - startX) / 100;
+            const newScale = Math.min(2.5, Math.max(0.4, startScale + delta));
+            el.style.setProperty("--scale", newScale);
+        };
+        const onUp = () => {
+            const finalScale = parseFloat(el.style.getPropertyValue("--scale")) || 1;
+            persistItemScale(uid, finalScale);
+            handle.removeEventListener("pointermove", onMove);
+            handle.removeEventListener("pointerup", onUp);
+        };
+        handle.addEventListener("pointermove", onMove);
+        handle.addEventListener("pointerup", onUp);
+    });
+    el.appendChild(handle);
 }
 
 function getCurrentScale(uid) {
@@ -4404,45 +3850,58 @@ function persistItemScale(uid, scale) {
     saveRoomData();
 }
 
+// レイヤーを1段階ずつ動かす。
+// 前後の並び順（ペット込み）で、重なっている相手とだけ入れ替えるので、押すたびに見た目が変わる。
+// delta: +1 = 1段階前へ、-1 = 1段階後ろへ
 function changeItemLayer(uid, delta) {
-    if (uid === "pet") return;
+    const canvas = document.getElementById("room-editor-canvas");
+    if (!canvas || !uid) return;
 
-    const item = roomData.placedItems.find(it => it.uid === uid);
-    if (!item) return;
+    const entries = [];
+    roomData.placedItems.forEach((it, i) => {
+        if (it.placed) entries.push({ uid: it.uid, z: it.z || 1, order: i });
+    });
+    if (roomData.pet) entries.push({ uid: "pet", z: PET_Z, order: -1 });
+    entries.sort((a, b) => (a.z - b.z) || (a.order - b.order));
 
-    const currentZ = item.z !== undefined ? item.z : 1;
-    item.z = Math.min(50, Math.max(1, currentZ + delta));
+    const from = entries.findIndex(e => e.uid === uid);
+    if (from < 0) return;
 
-    saveRoomData();
-    applyItemZIndex(uid, item.z);
-}
+    const rectOf = (id) => {
+        const node = canvas.querySelector(`.room-item[data-uid="${id}"]`);
+        return node ? node.getBoundingClientRect() : null;
+    };
+    const mine = rectOf(uid);
+    const overlaps = (r) => mine && r &&
+        r.left < mine.right && r.right > mine.left && r.top < mine.bottom && r.bottom > mine.top;
 
-function applyItemZIndex(uid, z) {
-    const el = document.querySelector(`#room-editor-canvas .room-item[data-uid="${uid}"]`);
-    if (el) {
-        el.style.zIndex = z;
-        const item = roomData.placedItems.find(it => it.uid === uid);
-        if (item) updateLayerToggleIcon(el, item);
+    let to = -1;
+    for (let i = from + delta; i >= 0 && i < entries.length; i += delta) {
+        if (overlaps(rectOf(entries[i].uid))) { to = i; break; }
     }
-}
-
-function toggleLayerAcrossPet(uid) {
-    if (uid === "pet") return;
-    const item = roomData.placedItems.find(it => it.uid === uid);
-    if (!item) return;
-    const current = item.z || 1;
-    item.z = current > PET_Z ? Math.max(1, PET_Z - 1) : Math.min(50, PET_Z + 1);
-    saveRoomData();
-    const el = document.querySelector(`#room-editor-canvas .room-item[data-uid="${uid}"]`);
-    if (el) {
-        el.style.zIndex = item.z;
-        updateLayerToggleIcon(el, item);
+    if (to < 0) {
+        if (typeof showToast === "function") {
+            showToast(delta > 0 ? "これ以上前に出せません" : "これ以上後ろに下げられません");
+        }
+        return;
     }
-}
 
-function updateLayerToggleIcon(el, item) {
-    const icon = el.querySelector(".layer-toggle .material-icons-round");
-    if (icon) icon.textContent = (item.z || 1) > PET_Z ? "flip_to_back" : "flip_to_front";
+    const moved = entries.splice(from, 1)[0];
+    entries.splice(to, 0, moved);
+
+    const petIdx = entries.findIndex(e => e.uid === "pet");
+    entries.forEach((e, i) => {
+        if (e.uid === "pet") return;
+        let z;
+        if (petIdx < 0) z = Math.min(50, i + 1);
+        else if (i < petIdx) z = Math.min(PET_Z - 1, i + 1);
+        else z = Math.min(50, PET_Z + (i - petIdx));
+        const item = roomData.placedItems.find(it => it.uid === e.uid);
+        if (item) item.z = z;
+        const node = canvas.querySelector(`.room-item[data-uid="${e.uid}"]`);
+        if (node) node.style.zIndex = z;
+    });
+    saveRoomData();
 }
 
 function returnItemToInventory(uid) {
@@ -4558,6 +4017,13 @@ function setupRoomEventListeners() {
     document.getElementById("btn-open-shop")?.addEventListener("click", openShop);
     document.getElementById("btn-close-shop")?.addEventListener("click", () => {
         document.getElementById("modal-shop")?.classList.remove("open");
+    });
+
+    document.getElementById("btn-layer-front")?.addEventListener("click", () => changeItemLayer(roomEditorSelectedUid, 1));
+    document.getElementById("btn-layer-back")?.addEventListener("click", () => changeItemLayer(roomEditorSelectedUid, -1));
+    document.getElementById("btn-item-confirm")?.addEventListener("click", deselectRoomItem);
+    document.getElementById("btn-item-remove")?.addEventListener("click", () => {
+        if (roomEditorSelectedUid && roomEditorSelectedUid !== "pet") returnItemToInventory(roomEditorSelectedUid);
     });
 
     document.getElementById("btn-open-room-editor")?.addEventListener("click", openRoomEditor);
@@ -4896,21 +4362,6 @@ function getDailyTotals(expenses, monthKey) {
     return out;
 }
 
-function getWeeklyTotals(expenses, monthKey) {
-    const daily = getDailyTotals(expenses, monthKey);
-    const weeks = [];
-    for (let i = 0; i < daily.length; i += 7) {
-        const chunk = daily.slice(i, i + 7);
-        weeks.push({
-            index: weeks.length + 1,
-            startDay: chunk[0].day,
-            endDay: chunk[chunk.length - 1].day,
-            total: chunk.reduce((s, d) => s + d.total, 0)
-        });
-    }
-    return weeks;
-}
-
 function getMonthStats(expenses, monthKey) {
     const daily = getDailyTotals(expenses, monthKey);
     const total = daily.reduce((s, d) => s + d.total, 0);
@@ -5023,23 +4474,6 @@ function buildDailyBarSvg(daily, options) {
         <line x1="0" y1="${padTop + plotH}" x2="${W}" y2="${padTop + plotH}" stroke="var(--line-strong)" stroke-width="1"/>
         ${ticks}
     </svg>`;
-}
-
-function buildWeeklyListHtml(weekly, options) {
-    const opts = Object.assign({ unit: "円" }, options || {});
-    if (!Array.isArray(weekly) || weekly.length === 0) {
-        return `<p class="breakdown-empty">週別のデータがありません</p>`;
-    }
-    const max = Math.max(1, ...weekly.map(w => Number(w.total) || 0));
-
-    return weekly.map(w => {
-        const pct = Math.max(2, Math.round(((Number(w.total) || 0) / max) * 100));
-        return `<div class="weekly-row">
-            <span class="weekly-label">${w.startDay}〜${w.endDay}日</span>
-            <span class="weekly-track"><span class="weekly-fill" style="width:${pct}%"></span></span>
-            <span class="weekly-value">${(Number(w.total) || 0).toLocaleString()} ${opts.unit}</span>
-        </div>`;
-    }).join("");
 }
 
 function buildComparisonHtml(comparison, options) {
