@@ -23,11 +23,11 @@
 <body>
     <div class="app-container">
         <header class="app-header">
-            <div class="currency-pill" id="currency-pill" title="所持ポイント">
-                <img src="assets/money_bag.png" alt="pt" class="currency-icon">
-                <span id="currency-amount">0</span>
-            </div>
+            <span class="app-title">余裕、ある？</span>
             <div class="header-actions">
+                <button class="icon-button paw-icon" id="btn-open-room-page" type="button" title="マイペット" aria-label="マイペット">
+                    <span class="material-icons-round">pets</span>
+                </button>
                 <button class="icon-button planner-icon" id="btn-open-planner" type="button" title="貯金プランナー" aria-label="貯金プランナー">
                     <span class="material-icons-round">auto_awesome</span>
                 </button>
@@ -37,42 +37,8 @@
             </div>
         </header>
 
-        <!-- ペットルーム プレビュー -->
-        <div class="room-section">
-            <div class="section-title-bar room-section-title">
-                <h2>マイルーム</h2>
-                <button class="room-edit-btn" id="btn-open-room-editor" title="部屋を編集">
-                    <span class="material-icons-round">edit</span>編集
-                </button>
-            </div>
-            <div class="pet-room-preview" id="pet-room-preview">
-
-                <!-- [修改点] RPG風メッセージウィンドウ：部屋画面の一番上に固定（スクロールしても動かない） -->
-                <div class="room-dialogue-box" id="room-dialogue-box">
-                    <p id="room-dialogue-text"></p>
-                </div>
-
-                <!-- [修改点] 添加横向滚动容器 -->
-                <div class="room-scroll-wrapper">
-                    <div class="room-scene" id="room-scene-preview"></div>
-                </div>
-
-            </div>
-
-            <!-- 下に引くと画面全体が小さくなる -->
-            <button class="pet-float-grip" id="pet-float-grip" type="button" title="画面を小さくする">
-                <span class="material-icons-round">keyboard_arrow_down</span>
-                <span class="pet-float-grip-text">下に引いて画面を小さくする</span>
-            </button>
-
-
-            <div class="pet-chat-bar">
-                <input type="text" class="pet-chat-input" id="pet-chat-input" placeholder="ペットに話しかける" maxlength="40" autocomplete="off">
-                <button class="pet-chat-send" id="pet-chat-send" title="送信"><span class="material-icons-round">send</span></button>
-            </div>
-        </div>
-
         <main class="app-content">
+            
             <!-- バックアップのお知らせ -->
             <div class="backup-banner" id="backup-banner" style="display:none;">
                 <span class="material-icons-round backup-banner-icon">cloud_off</span>
@@ -81,6 +47,8 @@
                 <button type="button" class="backup-banner-later" id="btn-backup-banner-later">あとで</button>
             </div>
 
+            <div class="landscape-cols">
+            <div class="col-left">
             <!-- 表示月の切り替え（過去月の閲覧） -->
             <div class="month-nav" id="month-nav">
                 <button class="month-nav-btn" id="btn-prev-month" title="前の月">
@@ -92,13 +60,11 @@
                 </button>
                 <button class="month-nav-today" id="btn-this-month">今月へ</button>
             </div>
-            <p class="month-past-note" id="month-past-note">過去の月を表示中です</p>
 
             <!-- 予算サマリー -->
             <div class="budget-box" id="budget-box">
                 <div class="budget-box-header">
                     <div class="budget-heading">
-                        <span class="budget-hero-label" id="budget-hero-label">今月の余裕</span>
                         <span class="budget-box-label" id="budget-period-label">2026年7月の予算</span>
                     </div>
                     <button class="budget-edit-btn" id="btn-edit-budget" type="button" title="予算を編集" aria-label="予算を編集">
@@ -123,16 +89,43 @@
 
             <!-- 内訳（カテゴリ別） -->
             <div class="breakdown-box" id="breakdown-box">
-                <div class="section-title-bar breakdown-title">
-                    <h2 id="breakdown-title-text">内訳</h2>
-                </div>
+                <button type="button" class="section-title-bar breakdown-title breakdown-toggle" id="btn-toggle-breakdown" aria-expanded="true" aria-controls="breakdown-list">
+                    <span class="breakdown-title-text" id="breakdown-title-text">内訳</span>
+                    <span class="material-icons-round breakdown-chevron">expand_more</span>
+                </button>
                 <div class="breakdown-list" id="breakdown-list"></div>
             </div>
 
             <!-- 貯金プラン（AIプランナーの結果） -->
             <div class="plan-card" id="plan-card" style="display:none;"></div>
 
-            <!-- グラフ -->
+            </div><!-- /col-left -->
+            <div class="col-right">
+            <!-- 支出の記録 -->
+            <div class="section-title-bar">
+                <h2>支出の記録</h2>
+            </div>
+
+            <div class="timeline" id="expense-timeline"></div>
+            </div><!-- /col-right -->
+            </div><!-- /landscape-cols -->
+
+
+            <button class="fab" id="fab-add-expense" type="button" aria-label="支出を記録する">
+                <span class="material-icons-round">add</span>
+                <span class="fab-label">記録する</span>
+            </button>
+        </main>
+
+        <!-- 詳細（グラフ） -->
+        <div class="modal-overlay shop-overlay" id="modal-details">
+            <div class="modal-content shop-content">
+                <div class="modal-header">
+                    <h3>詳細</h3>
+                    <button class="close-button" id="btn-close-details" type="button">閉じる</button>
+                </div>
+                <div class="modal-body">
+                    <!-- グラフ -->
             <div class="charts-box" id="charts-box">
                 <div class="section-title-bar">
                     <h2 id="charts-title-text">グラフ</h2>
@@ -152,18 +145,9 @@
                     <div class="compare-list" id="compare-list"></div>
                 </div>
             </div>
-
-            <!-- 支出の記録 -->
-            <div class="section-title-bar">
-                <h2>支出の記録</h2>
+                </div>
             </div>
-
-            <div class="timeline" id="expense-timeline"></div>
-
-            <button class="fab" id="fab-add-expense">
-                <span class="material-icons-round">add</span>
-            </button>
-        </main>
+        </div>
 
         <!-- メニュー（フルスクリーン） -->
         <div class="modal-overlay shop-overlay" id="modal-menu">
@@ -174,11 +158,8 @@
                 </div>
                 <div class="modal-body">
                     <nav class="menu-list">
-                        <button class="more-item" id="btn-open-gacha" type="button">
-                            <span class="material-icons-round">casino</span><span>ガチャ</span><span class="material-icons-round more-item-chevron">chevron_right</span>
-                        </button>
-                        <button class="more-item" id="btn-open-shop" type="button">
-                            <span class="material-icons-round">storefront</span><span>ショップ</span><span class="material-icons-round more-item-chevron">chevron_right</span>
+                        <button class="more-item" id="btn-open-details" type="button">
+                            <span class="material-icons-round">bar_chart</span><span>詳細</span><span class="material-icons-round more-item-chevron">chevron_right</span>
                         </button>
                         <button class="more-item" id="btn-open-data" type="button">
                             <span class="material-icons-round">storage</span><span>データ管理</span><span class="material-icons-round more-item-chevron">chevron_right</span>
@@ -201,20 +182,6 @@
                 <div class="modal-body">
                     <input type="hidden" id="expense-edit-id" value="">
 
-                    <!-- レシート読み取り（OCR）。失敗しても手入力にそのまま落ちる -->
-                    <div class="receipt-row">
-                        <label class="secondary-button receipt-button" for="input-receipt-image">
-                            <span class="material-icons-round">photo_camera</span>
-                            レシート・画像から読み取る
-                        </label>
-                        <input type="file" id="input-receipt-image" accept="image/*" hidden>
-                        <span class="receipt-hint" id="receipt-status"></span>
-                    </div>
-                    <div class="receipt-preview" id="receipt-preview" style="display:none;">
-                        <img id="receipt-preview-img" alt="読み取りしたレシート">
-                        <div class="receipt-warnings" id="receipt-warnings"></div>
-                    </div>
-
                     <div class="form-group">
                         <label>金額 (円)</label>
                         <input type="number" id="expense-amount" placeholder="0" min="0">
@@ -226,31 +193,12 @@
                         </div>
                     </div>
                     <div class="form-group">
-                        <label>店舗（任意）</label>
-                        <input type="text" id="expense-store" placeholder="例：スーパーA" maxlength="40">
-                    </div>
-                    <div class="form-group">
                         <label>メモ（任意）</label>
                         <input type="text" id="expense-memo" placeholder="例：週末のまとめ買い" maxlength="60">
                     </div>
                     <div class="form-group">
-                        <label>品目（明細・任意）</label>
-                        <div class="items-editor">
-                            <div class="items-list" id="expense-items-list"></div>
-                            <div class="items-actions">
-                                <button type="button" class="secondary-button" id="btn-add-item">
-                                    <span class="material-icons-round">add</span>
-                                    品目を追加
-                                </button>
-                                <button type="button" class="text-cancel-button" id="btn-apply-items-total">合計を金額に入れる</button>
-                            </div>
-                            <p class="items-summary" id="items-summary"></p>
-                        </div>
-                    </div>
-                    <div class="form-group">
                         <label>日時</label>
                         <input type="datetime-local" id="expense-datetime" class="datetime-input">
-                        <p class="field-hint">あとから日付を直せます（レシートの日付に合わせられます）</p>
                     </div>
                 </div>
                 <div class="modal-footer">
@@ -271,19 +219,19 @@
 
                     <div class="form-group">
                         <label>月収（手取り）</label>
-                        <input type="number" id="planner-income" placeholder="250000" min="0" step="1000">
+                        <div class="yen-field"><span class="yen-prefix">¥</span><input type="number" id="planner-income" min="0" step="1000" inputmode="numeric"></div>
                     </div>
                     <div class="form-group">
                         <label>ほしいものの金額</label>
-                        <input type="number" id="planner-target" placeholder="80000" min="0" step="1000">
+                        <div class="yen-field"><span class="yen-prefix">¥</span><input type="number" id="planner-target" min="0" step="1000" inputmode="numeric"></div>
                     </div>
                     <div class="form-group">
                         <label>月の支出</label>
-                        <input type="number" id="planner-expense" placeholder="200000" min="0" step="1000">
+                        <div class="yen-field"><span class="yen-prefix">¥</span><input type="number" id="planner-expense" min="0" step="1000" inputmode="numeric"></div>
                         <p class="field-hint" id="planner-expense-hint"></p>
                     </div>
                     <div class="form-group">
-                        <label>難易度を選ぶ</label>
+                        <div class="difficulty-heading"><span class="material-icons-round">flag</span><span class="difficulty-heading-text">難易度を選ぶ</span></div>
                         <div class="difficulty-row" id="planner-difficulty">
                             <button type="button" class="difficulty-card" data-difficulty="easy">
                                 <span class="material-icons-round">eco</span>
@@ -382,39 +330,6 @@
                     </div>
 
                     <div class="data-section">
-                        <h4 class="data-section-title">AI設定（レシート読み取り・ペットとの会話）</h4>
-                        <p class="data-section-desc">自分の APIキー を入れると、レシートの自動入力と、ペットとのAI会話が使えます。キーはこの端末にだけ保存され、このアプリのコードやGitHubには含まれません。使うときだけ、レシート画像や話しかけた内容が選択した事業者へ送信されます。</p>
-
-                        <div class="form-group">
-                            <label>サービス</label>
-                            <div class="select-wrapper">
-                                <select id="ocr-provider" class="styled-select-full">
-                                    <option value="gemini">Google Gemini</option>
-                                    <option value="openai">OpenAI</option>
-                                    <option value="custom">その他（OpenAI 互換のエンドポイント）</option>
-                                </select>
-                            </div>
-                        </div>
-                        <div class="form-group">
-                            <label>APIキー</label>
-                            <input type="password" id="ocr-api-key" placeholder="ここに貼り付け" autocomplete="off">
-                        </div>
-                        <div class="form-group">
-                            <label>モデル名</label>
-                            <input type="text" id="ocr-model" placeholder="gemini-2.0-flash">
-                        </div>
-                        <div class="form-group" id="ocr-endpoint-group" style="display:none;">
-                            <label>エンドポイント</label>
-                            <input type="text" id="ocr-endpoint" placeholder="https://api.example.com/v1">
-                        </div>
-                        <div class="data-action-row">
-                            <button class="primary-button-sm" id="btn-save-ocr">保存</button>
-                            <button class="secondary-button" id="btn-test-ocr">接続テスト</button>
-                        </div>
-                        <p class="data-import-status" id="ocr-status"></p>
-                    </div>
-
-                    <div class="data-section">
                         <h4 class="data-section-title">リセット</h4>
                         <p class="data-section-desc">今月分の支出と予算だけを消すか、すべてのデータを消して初期状態に戻せます。元に戻せないのでご注意ください。</p>
                         <div class="data-action-row">
@@ -483,103 +398,138 @@
             </div>
         </div>
 
-        <!-- ガチャ・コレクション -->
-        <div class="modal-overlay shop-overlay" id="modal-gacha">
-            <div class="modal-content gacha-content">
-                <div class="modal-header">
-                    <h3>ガチャ</h3>
-                    <button class="close-button" id="btn-close-gacha">閉じる</button>
-                </div>
-                <div class="shop-currency-row">
-                    <span class="material-icons-round">toll</span>
-                    <span id="gacha-currency-amount">0</span>
-                    <span class="shop-currency-unit">pt 所持</span>
-                </div>
-                <div class="gacha-tabs">
-                    <button type="button" class="gacha-tab is-active" id="tab-gacha-pull">ひく</button>
-                    <button type="button" class="gacha-tab" id="tab-gacha-collection">コレクション <span id="gacha-collection-count"></span></button>
-                </div>
-                <div class="modal-body">
-                    <div id="gacha-pane-pull">
-                        <div class="gacha-machine" aria-hidden="true">
-                            <svg viewBox="0 0 160 190" width="150" height="178">
-                                <rect x="30" y="112" width="100" height="66" rx="8" fill="#e8647a" stroke="#191b1d" stroke-width="4"/>
-                                <rect x="52" y="128" width="56" height="20" rx="4" fill="#fff7ec" stroke="#191b1d" stroke-width="3"/>
-                                <circle cx="80" cy="162" r="9" fill="#ffd978" stroke="#191b1d" stroke-width="3"/>
-                                <circle cx="80" cy="62" r="52" fill="#dff2fa" stroke="#191b1d" stroke-width="4"/>
-                                <circle cx="56" cy="74" r="13" fill="#f7bfd0" stroke="#191b1d" stroke-width="3"/>
-                                <circle cx="82" cy="84" r="13" fill="#ffd978" stroke="#191b1d" stroke-width="3"/>
-                                <circle cx="106" cy="70" r="13" fill="#8fd0ee" stroke="#191b1d" stroke-width="3"/>
-                                <circle cx="70" cy="52" r="12" fill="#b6e3a0" stroke="#191b1d" stroke-width="3"/>
-                                <circle cx="96" cy="46" r="12" fill="#f7bfd0" stroke="#191b1d" stroke-width="3"/>
-                                <ellipse cx="60" cy="34" rx="12" ry="6" fill="#fff" opacity=".6" transform="rotate(-35 60 34)"/>
-                                <rect x="40" y="178" width="80" height="8" rx="3" fill="#191b1d"/>
-                            </svg>
-                        </div>
-                        <p class="data-section-desc gacha-lead">ログインや記録でためたポイントで、あたらしい仲間やお部屋が手に入ります。</p>
-                        <p class="gacha-remain" id="gacha-remain"></p>
-                        <div class="gacha-odds" id="gacha-odds"></div>
-                        <button class="primary-button" id="btn-gacha-pull">ガチャをひく</button>
-                        <p class="data-import-status" id="gacha-status"></p>
-                        <p class="field-hint">まだ持っていないものだけが出ます（ダブりなし）。1回 <span id="gacha-cost">1,000</span>pt です。</p>
-                    </div>
-                    <div id="gacha-pane-collection" style="display:none;">
-                        <p class="field-hint">持っているものをタップすると切りかえられます。</p>
-                        <h4 class="data-section-title">ペット</h4>
-                        <div class="collection-grid" id="collection-pets"></div>
-                        <h4 class="data-section-title">部屋（マップ）</h4>
-                        <div class="collection-grid collection-grid-wide" id="collection-maps"></div>
-                    </div>
-                </div>
             </div>
-            <div class="gacha-overlay" id="gacha-overlay"></div>
-        </div>
 
-        <!-- ショップモーダル（フルスクリーン） -->
-        <div class="modal-overlay shop-overlay" id="modal-shop">
-            <div class="modal-content shop-content">
-                <div class="modal-header">
-                    <h3>ショップ</h3>
-                    <button class="close-button" id="btn-close-shop">閉じる</button>
-                </div>
-                <div class="shop-currency-row">
-                    <span class="material-icons-round">toll</span>
-                    <span id="shop-currency-amount">0</span>
-                    <span class="shop-currency-unit">pt 所持</span>
-                </div>
-                <div class="modal-body">
-                    <div class="shop-grid" id="shop-grid"></div>
-                    <p class="shop-empty-hint" id="shop-empty-hint" style="display:none;">すべてのアイテムを購入しました！</p>
-                </div>
-            </div>
-        </div>
-
-        <!-- ルーム編集（フルスクリーン） -->
-        <div class="room-editor" id="room-editor">
-            <div class="room-editor-toolbar">
-                <button class="icon-button room-editor-close" id="btn-close-room-editor">
-                    <span class="material-icons-round">close</span>
+    <!-- マイルーム（専用ページ・横画面いっぱい） -->
+        <div class="room-page" id="room-page" aria-hidden="true">
+            <div class="room-page-bar">
+                <button class="room-bar-btn" id="btn-close-room-page" type="button" aria-label="もどる">
+                    <span class="material-icons-round">arrow_back</span><span>もどる</span>
                 </button>
-                <span class="room-editor-title">マイルーム編集</span>
-                <span class="room-editor-hint">横にスワイプして部屋全体を確認。ドラッグで移動。</span>
+                <div class="currency-pill" id="currency-pill" title="所持ポイント">
+                    <img src="assets/money_bag.png" alt="pt" class="currency-icon">
+                    <span id="currency-amount">0</span>
+                </div>
+                <div class="room-bar-actions">
+                    <button class="room-bar-btn" id="btn-room-gacha" type="button"><span class="material-icons-round">casino</span><span>ガチャ</span></button>
+                    <button class="room-bar-btn" id="btn-room-shop" type="button"><span class="material-icons-round">storefront</span><span>ショップ</span></button>
+                    <button class="room-bar-btn" id="btn-open-room-editor" type="button"><span class="material-icons-round">edit</span><span>編集</span></button>
+                </div>
             </div>
-            <!-- [修改点] 编辑器也支持横向滚动 -->
-            <div class="room-editor-scroll-wrapper">
-                <div class="room-editor-canvas" id="room-editor-canvas"></div>
+            <div class="pet-room-preview" id="pet-room-preview">
+                <div class="room-dialogue-box" id="room-dialogue-box">
+                    <p id="room-dialogue-text"></p>
+                </div>
+                <div class="room-scroll-wrapper">
+                    <div class="room-scene" id="room-scene-preview"></div>
+                </div>
             </div>
-            <div class="room-editor-actions" id="room-editor-actions">
-                <button type="button" class="editor-action-btn" id="btn-layer-front"><span class="material-icons-round">arrow_upward</span>前へ</button>
-                <button type="button" class="editor-action-btn" id="btn-layer-back"><span class="material-icons-round">arrow_downward</span>後ろへ</button>
-                <button type="button" class="editor-action-btn is-danger" id="btn-item-remove"><span class="material-icons-round">inventory_2</span>持ち物へ</button>
-                <button type="button" class="editor-action-btn is-confirm" id="btn-item-confirm"><span class="material-icons-round">check</span>確定</button>
+
+            <!-- ガチャ・コレクション -->
+            <div class="modal-overlay shop-overlay" id="modal-gacha">
+                <div class="modal-content gacha-content">
+                    <div class="modal-header">
+                        <h3>ガチャ</h3>
+                        <button class="close-button" id="btn-close-gacha">閉じる</button>
+                    </div>
+                    <div class="shop-currency-row">
+                        <span class="material-icons-round">toll</span>
+                        <span id="gacha-currency-amount">0</span>
+                        <span class="shop-currency-unit">pt 所持</span>
+                    </div>
+                    <div class="gacha-tabs">
+                        <button type="button" class="gacha-tab is-active" id="tab-gacha-pull">ひく</button>
+                        <button type="button" class="gacha-tab" id="tab-gacha-collection">コレクション <span id="gacha-collection-count"></span></button>
+                    </div>
+                    <div class="modal-body">
+                        <div id="gacha-pane-pull">
+                            <div class="gacha-machine" aria-hidden="true">
+                                <svg viewBox="0 0 160 190" width="150" height="178">
+                                    <rect x="30" y="112" width="100" height="66" rx="8" fill="#e8647a" stroke="#191b1d" stroke-width="4"/>
+                                    <rect x="52" y="128" width="56" height="20" rx="4" fill="#fff7ec" stroke="#191b1d" stroke-width="3"/>
+                                    <circle cx="80" cy="162" r="9" fill="#ffd978" stroke="#191b1d" stroke-width="3"/>
+                                    <circle cx="80" cy="62" r="52" fill="#dff2fa" stroke="#191b1d" stroke-width="4"/>
+                                    <circle cx="56" cy="74" r="13" fill="#f7bfd0" stroke="#191b1d" stroke-width="3"/>
+                                    <circle cx="82" cy="84" r="13" fill="#ffd978" stroke="#191b1d" stroke-width="3"/>
+                                    <circle cx="106" cy="70" r="13" fill="#8fd0ee" stroke="#191b1d" stroke-width="3"/>
+                                    <circle cx="70" cy="52" r="12" fill="#b6e3a0" stroke="#191b1d" stroke-width="3"/>
+                                    <circle cx="96" cy="46" r="12" fill="#f7bfd0" stroke="#191b1d" stroke-width="3"/>
+                                    <ellipse cx="60" cy="34" rx="12" ry="6" fill="#fff" opacity=".6" transform="rotate(-35 60 34)"/>
+                                    <rect x="40" y="178" width="80" height="8" rx="3" fill="#191b1d"/>
+                                </svg>
+                            </div>
+                            <p class="data-section-desc gacha-lead">ログインや記録でためたポイントで、あたらしい仲間やお部屋が手に入ります。</p>
+                            <p class="gacha-remain" id="gacha-remain"></p>
+                            <div class="gacha-odds" id="gacha-odds"></div>
+                            <button class="primary-button" id="btn-gacha-pull">ガチャをひく</button>
+                            <p class="data-import-status" id="gacha-status"></p>
+                            <p class="field-hint">まだ持っていないものだけが出ます（ダブりなし）。1回 <span id="gacha-cost">1,000</span>pt です。</p>
+                        </div>
+                        <div id="gacha-pane-collection" style="display:none;">
+                            <p class="field-hint">持っているものをタップすると切りかえられます。</p>
+                            <h4 class="data-section-title">ペット</h4>
+                            <div class="collection-grid" id="collection-pets"></div>
+                            <h4 class="data-section-title">部屋（マップ）</h4>
+                            <div class="collection-grid collection-grid-wide" id="collection-maps"></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="gacha-overlay" id="gacha-overlay"></div>
             </div>
-            <div class="room-editor-tray" id="room-editor-tray">
-                <div class="room-editor-tray-label">持ち物</div>
-                <div class="room-editor-tray-items" id="room-editor-tray-items"></div>
+    
+            <!-- ショップモーダル（フルスクリーン） -->
+            <div class="modal-overlay shop-overlay" id="modal-shop">
+                <div class="modal-content shop-content">
+                    <div class="modal-header">
+                        <h3>ショップ</h3>
+                        <button class="close-button" id="btn-close-shop">閉じる</button>
+                    </div>
+                    <div class="shop-currency-row">
+                        <span class="material-icons-round">toll</span>
+                        <span id="shop-currency-amount">0</span>
+                        <span class="shop-currency-unit">pt 所持</span>
+                    </div>
+                    <div class="modal-body">
+                        <div class="shop-grid" id="shop-grid"></div>
+                        <p class="shop-empty-hint" id="shop-empty-hint" style="display:none;">すべてのアイテムを購入しました！</p>
+                    </div>
+                </div>
+            </div>
+    
+            <!-- ルーム編集（フルスクリーン） -->
+            <div class="room-editor" id="room-editor">
+                <div class="room-editor-toolbar">
+                    <button class="icon-button room-editor-close" id="btn-close-room-editor">
+                        <span class="material-icons-round">close</span>
+                    </button>
+                    <span class="room-editor-title">マイルーム編集</span>
+                    <span class="room-editor-hint">横にスワイプして部屋全体を確認。ドラッグで移動。</span>
+                </div>
+                <!-- [修改点] 编辑器也支持横向滚动 -->
+                <div class="room-editor-scroll-wrapper">
+                    <div class="room-editor-canvas" id="room-editor-canvas"></div>
+                </div>
+                <div class="room-editor-actions" id="room-editor-actions">
+                    <button type="button" class="editor-action-btn" id="btn-layer-front"><span class="material-icons-round">arrow_upward</span>前へ</button>
+                    <button type="button" class="editor-action-btn" id="btn-layer-back"><span class="material-icons-round">arrow_downward</span>後ろへ</button>
+                    <button type="button" class="editor-action-btn is-danger" id="btn-item-remove"><span class="material-icons-round">inventory_2</span>持ち物へ</button>
+                    <button type="button" class="editor-action-btn is-confirm" id="btn-item-confirm"><span class="material-icons-round">check</span>確定</button>
+                </div>
+                <div class="room-editor-tray" id="room-editor-tray">
+                    <div class="room-editor-tray-label">持ち物</div>
+                    <div class="room-editor-tray-items" id="room-editor-tray-items"></div>
+                </div>
+            </div>
+    
+    
+            <!-- 縦持ちのとき：横向きにするまでマイペットは使えない -->
+            <div class="rotate-notice" id="rotate-notice" aria-hidden="true">
+                <span class="material-icons-round">screen_rotation</span>
+                <p class="rotate-title">スマホを横向きにしてください</p>
+                <p class="rotate-sub">マイペットは横画面専用です</p>
+                <button class="room-bar-btn" id="btn-rotate-back" type="button"><span class="material-icons-round">arrow_back</span><span>もどる</span></button>
             </div>
         </div>
-
-    </div>
 
     <script src="app.js"></script>
 </body>

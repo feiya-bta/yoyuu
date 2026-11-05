@@ -458,8 +458,6 @@ function renderMonthNav() {
     const todayBtn = document.getElementById("btn-this-month");
     if (todayBtn) todayBtn.style.display = isViewingCurrentMonth() ? "none" : "inline-flex";
 
-    const note = document.getElementById("month-past-note");
-    if (note) note.style.display = isViewingCurrentMonth() ? "none" : "block";
 }
 
 function renderBreakdownTitle() {
@@ -478,17 +476,10 @@ function renderBudgetSummary() {
     const summarySpent = document.getElementById("summary-spent");
     const summaryBudget = document.getElementById("summary-budget");
     const remainingText = document.getElementById("budget-remaining-text");
-    const heroLabel = document.getElementById("budget-hero-label");
     const progressFill = document.getElementById("budget-progress-fill");
     const budgetBox = document.getElementById("budget-box");
     const fab = document.getElementById("fab-add-expense");
     const btnEditBudget = document.getElementById("btn-edit-budget");
-
-    if (heroLabel) {
-        heroLabel.textContent = isViewingCurrentMonth()
-            ? "今月の余裕"
-            : `${formatMonthLabel(monthKey)}の余裕`;
-    }
 
     if (btnEditBudget) btnEditBudget.style.display = "inline-flex";
 
@@ -517,8 +508,8 @@ function renderBudgetSummary() {
 
     const remaining = budget - spent;
     if (remainingText) {
-        remainingText.textContent = remaining >= 0
-            ? `${remaining.toLocaleString()} 円`
+        remainingText.innerHTML = remaining >= 0
+            ? `<span class="remain-prefix">残り</span> ${remaining.toLocaleString()} 円`
             : `${Math.abs(remaining).toLocaleString()} 円 超過`;
     }
 
@@ -720,7 +711,16 @@ function renderExpenseTimeline() {
     });
 }
 
+function applyBreakdownCollapse() {
+    const box = document.getElementById("breakdown-box");
+    const btn = document.getElementById("btn-toggle-breakdown");
+    const collapsed = !!appPrefs.breakdownCollapsed;
+    if (box) box.classList.toggle("is-collapsed", collapsed);
+    if (btn) btn.setAttribute("aria-expanded", collapsed ? "false" : "true");
+}
+
 function renderBreakdown() {
+    applyBreakdownCollapse();
     const list = document.getElementById("breakdown-list");
     if (!list) return;
     list.innerHTML = "";
@@ -839,8 +839,7 @@ function isExpenseFormDirty() {
         const el = document.getElementById(id);
         return el ? String(el.value || "").trim() : "";
     };
-    return !!(v("expense-amount") || v("expense-memo") || v("expense-store")
-        || document.querySelectorAll("#expense-items-list .item-row").length > 0);
+    return !!(v("expense-amount") || v("expense-memo"));
 }
 
 function closeModalByBackdrop(overlay) {
@@ -876,6 +875,19 @@ function setupEventListeners() {
     document.getElementById("btn-close-menu")?.addEventListener("click", () => menuModal?.classList.remove("open"));
     menuModal?.addEventListener("click", (e) => {
         if (e.target.closest(".more-item")) menuModal.classList.remove("open");
+    });
+
+    document.getElementById("btn-open-details")?.addEventListener("click", () => {
+        renderCharts();
+        document.getElementById("modal-details")?.classList.add("open");
+    });
+    document.getElementById("btn-close-details")?.addEventListener("click", () => {
+        document.getElementById("modal-details")?.classList.remove("open");
+    });
+    document.getElementById("btn-toggle-breakdown")?.addEventListener("click", () => {
+        appPrefs.breakdownCollapsed = !appPrefs.breakdownCollapsed;
+        savePrefs();
+        applyBreakdownCollapse();
     });
 
     const btnEditBudget = document.getElementById("btn-edit-budget");
@@ -985,8 +997,8 @@ function setupEventListeners() {
                     existing.amount = amount;
                     existing.categoryId = categoryId;
                     existing.memo = memo;
-                    existing.store = store;
-                    existing.items = items;
+                    if (document.getElementById("expense-store")) existing.store = store;
+                    if (document.getElementById("expense-items-list")) existing.items = items;
                     existing.datetime = when.toISOString();
                     existing.dateKey = localDateKey(when);
                     existing.monthKey = localMonthKey(when);
@@ -1054,7 +1066,6 @@ function setupEventListeners() {
     if (btnOpenData) {
         btnOpenData.addEventListener("click", () => {
             renderStorageInfo();
-            renderOcrSettingsForm();
             const status = document.getElementById("data-import-status");
             if (status) status.textContent = "";
             const modal = document.getElementById("modal-data");
@@ -1183,27 +1194,6 @@ function setupEventListeners() {
         });
     }
 
-    document.getElementById("btn-add-item")?.addEventListener("click", () => addItemRow());
-    const itemListEl = document.getElementById("expense-items-list");
-    if (itemListEl) {
-        itemListEl.addEventListener("click", (e) => {
-            const removeBtn = e.target.closest("[data-item-remove]");
-            if (!removeBtn) return;
-            const row = removeBtn.closest(".item-row");
-            if (row) row.remove();
-            updateItemsSummary();
-        });
-        itemListEl.addEventListener("input", updateItemsSummary);
-    }
-    document.getElementById("btn-apply-items-total")?.addEventListener("click", () => {
-        const total = sumItemPrices();
-        const amountEl = document.getElementById("expense-amount");
-        if (total > 0 && amountEl) {
-            amountEl.value = total;
-            validateExpenseInput();
-        }
-    });
-
     document.getElementById("btn-open-planner")?.addEventListener("click", openPlannerModal);
     document.getElementById("btn-close-planner")?.addEventListener("click", () => {
         document.getElementById("modal-planner")?.classList.remove("open");
@@ -1218,19 +1208,6 @@ function setupEventListeners() {
     document.getElementById("plan-card")?.addEventListener("click", (e) => {
         if (e.target.closest("#btn-clear-plan")) clearPlan();
     });
-
-    const receiptInput = document.getElementById("input-receipt-image");
-    if (receiptInput) {
-        receiptInput.addEventListener("change", (e) => {
-            const file = e.target.files && e.target.files[0];
-            handleReceiptFile(file);
-            receiptInput.value = "";
-        });
-    }
-
-    document.getElementById("ocr-provider")?.addEventListener("change", updateOcrEndpointVisibility);
-    document.getElementById("btn-save-ocr")?.addEventListener("click", saveOcrSettingsFromForm);
-    document.getElementById("btn-test-ocr")?.addEventListener("click", testOcrConnection);
 
     document.getElementById("btn-backup-banner-open")?.addEventListener("click", () => {
         appPrefs.backupRemindedAt = new Date().toISOString();
@@ -1361,8 +1338,7 @@ function openExpenseModal() {
     if (storeEl) storeEl.value = "";
     if (datetimeEl) datetimeEl.value = toDatetimeLocalValue(new Date());
     limitExpenseDatetime();
-    renderItemsEditor([]);
-    resetReceiptUi();
+    pendingReceipt = null;
     renderCategorySelect();
 
     validateExpenseInput();
@@ -1391,9 +1367,7 @@ function editExpense(id) {
     if (storeEl) storeEl.value = exp.store || "";
     if (datetimeEl) datetimeEl.value = toDatetimeLocalValue(exp.datetime);
     limitExpenseDatetime();
-    renderItemsEditor(exp.items || []);
-    resetReceiptUi();
-    showReceiptThumbnail(exp.receiptImageId);
+    pendingReceipt = null;
 
     validateExpenseInput();
     if (modal) modal.classList.add("open");
@@ -2015,7 +1989,7 @@ function openPlannerModal() {
     if (hintEl) {
         hintEl.textContent = estimated
             ? `空欄なら、直近3か月の記録から ${estimated.toLocaleString()} 円 を使います。`
-            : "まだ支出の記録が少ないので、実際の金額を入れてください。";
+            : "※月ごとに大体の支出で良いです。";
     }
 
     const modal = document.getElementById("modal-planner");
@@ -2418,8 +2392,8 @@ const PET_AWAKE_IMG = {
     panda: "assets/panda_awake.png"
 };
 const PET_SLEEP_IMG = {
-    neko: "assets/neko_sleep.png",
-    usagi: "assets/usagi_sleep.png",
+    neko: "assets/neko_sleep.gif",
+    usagi: "assets/usagi_sleep.gif",
     shiba: "assets/shiba_sleep.png",
     hamster: "assets/hamster_sleep.png",
     panda: "assets/panda_sleep.png"
@@ -2439,8 +2413,29 @@ const MAP_CATALOG = {
     default:   { label: "はじまりの部屋", img: "assets/wallpaper.jpg" },
     washitsu:  { label: "さくらの和室",   img: "assets/map_washitsu.png" },
     seaside:   { label: "うみべの部屋",   img: "assets/map_seaside.png" },
-    nightloft: { label: "ほしぞらロフト", img: "assets/map_nightloft.png" }
+    nightloft: { label: "ほしぞらロフト", img: "assets/map_nightloft.png" },
+    wallpaper_cute_pastel: { label: "かわいいパステル", img: "assets/wallpaper_cute_pastel.png" },
+    wallpaper_modern_gray: { label: "モダングレー",     img: "assets/wallpaper_modern_gray.png" }
 };
+
+// 壁紙の拡張子が png / jpg / webp のどれでも読み込めるよう、最初に実際のファイルを探す
+(function probeWallpaperExtensions() {
+    ["wallpaper_cute_pastel", "wallpaper_modern_gray"].forEach(id => {
+        const exts = ["png", "jpg", "jpeg", "webp"];
+        const tryNext = (i) => {
+            if (i >= exts.length) return;
+            const src = `assets/${id}.${exts[i]}`;
+            const img = new Image();
+            img.onload = () => {
+                MAP_CATALOG[id].img = src;
+                if (typeof applyRoomMap === "function" && typeof roomData !== "undefined") applyRoomMap();
+            };
+            img.onerror = () => tryNext(i + 1);
+            img.src = src;
+        };
+        tryNext(0);
+    });
+})();
 
 function petDefaultName(type) {
     return (PET_CATALOG[type] || PET_CATALOG.neko).defaultName;
@@ -3274,109 +3269,11 @@ function getRecordingStreak() {
     return streak;
 }
 
-function petChatReply(text) {
-    const t = (text || "").trim();
-    if (!t) return getPetLine("idle", "なにか話したいのかな？");
-    if (/こんにちは|こんばんは|おはよう|やあ|\bhello\b|\bhi\b/i.test(t)) return getPetLine("idle", "こんにちは！今日も一緒にがんばろう");
-    if (/目標|貯金|節約|予算|お金|円|買い/i.test(t)) return pickPetLine(getCurrentBudgetRatioOrNull());
-    if (/すごい|えらい|かわいい|いいね|good|好き|love/i.test(t)) return getPetLine("idle", "ありがとう！うれしい");
-    if (/元気|げんき|大丈夫|どう/i.test(t)) return getPetLine("idle", "元気だよ！あなたも無理しないでね");
-    if (/眠|ねむ|おやすみ/i.test(t)) return getPetLine("idle", "おやすみ。また明日ね");
-    return randomPick([getPetLine("idle", "なるほど！"), getPetLine("idle", "そうなんだ！"), getPetLine("idle", "うん、聞いてるよ！"), getPetLine("idle", "ふむふむ…")]);
-}
-
-// ------------------------------------------
-// ペットとの会話（AI）
-// ------------------------------------------
-// 「データ管理 → AI設定」で入れたキーを使う（レシート読み取りと共通）。
-// 未設定・通信失敗のときは、これまでのルールベースの返事にそのまま戻る。
-let petChatHistory = [];
-let petChatBusy = false;
-
 function checkAiEndpoint(settings) {
     if (settings.provider !== "custom") return "";
     const endpoint = String(settings.endpoint || "").trim();
     const isLocal = /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?(\/|$)/i.test(endpoint);
     return (/^https:\/\//i.test(endpoint) || isLocal) ? "" : "エンドポイントは https:// で指定してください（localhost を除く）。";
-}
-
-function buildPetSystemPrompt() {
-    const pet = roomData.pet || {};
-    const kind = PET_CATALOG[pet.type] || PET_CATALOG.neko;
-    const monthKey = getCurrentMonthKey();
-    const budget = appData.budget[monthKey] || 0;
-    const spent = expensesOfMonth(monthKey).reduce((sum, e) => sum + e.amount, 0);
-    const money = budget > 0
-        ? `今月の予算は${budget}円、使った額は${spent}円（使用率${Math.round(spent / budget * 100)}%）。`
-        : "今月の予算はまだ決まっていない。";
-    return [
-        `あなたは家計簿アプリの中で飼い主と暮らすペット「${pet.name || kind.label}」（${kind.label}）です。`,
-        `やさしく素直な口調で、必ず日本語で、1〜2文・60文字以内で返事をする。語尾は「${kind.gobi}」で終える。`,
-        "飼い主を責めたり説教したりしない。投資・借金・法律などの専門的な助言はせず、詳しい人に聞くようやんわり促す。",
-        "APIキーや設定の話題には答えない。",
-        money
-    ].join("\n");
-}
-
-async function askPetLLM(text) {
-    const s = getOcrSettings();
-    if (!isOcrConfigured() || checkAiEndpoint(s)) return null;
-
-    const system = buildPetSystemPrompt();
-    const turns = petChatHistory.slice(-6).concat([{ role: "user", text: text }]);
-    let req;
-    if (s.provider === "gemini") {
-        const endpoint = (s.endpoint || "https://generativelanguage.googleapis.com").replace(/\/$/, "");
-        req = {
-            url: `${endpoint}/v1beta/models/${encodeURIComponent(s.model || "gemini-2.0-flash")}:generateContent`,
-            headers: { "Content-Type": "application/json", "x-goog-api-key": s.apiKey },
-            body: {
-                systemInstruction: { parts: [{ text: system }] },
-                contents: turns.map(t => ({ role: t.role === "user" ? "user" : "model", parts: [{ text: t.text }] })),
-                generationConfig: { temperature: 0.8, maxOutputTokens: 150 }
-            }
-        };
-    } else {
-        const endpoint = (s.endpoint || "https://api.openai.com/v1").replace(/\/$/, "");
-        req = {
-            url: `${endpoint}/chat/completions`,
-            headers: { "Content-Type": "application/json", "Authorization": `Bearer ${s.apiKey}` },
-            body: {
-                model: s.model || "gpt-4o-mini",
-                temperature: 0.8,
-                max_tokens: 150,
-                messages: [{ role: "system", content: system }]
-                    .concat(turns.map(t => ({ role: t.role, content: t.text })))
-            }
-        };
-    }
-
-    const controller = typeof AbortController === "function" ? new AbortController() : null;
-    const timer = controller ? setTimeout(() => controller.abort(), 15000) : null;
-    try {
-        const res = await fetch(req.url, {
-            method: "POST",
-            headers: req.headers,
-            body: JSON.stringify(req.body),
-            signal: controller ? controller.signal : undefined
-        });
-        if (!res.ok) return null;
-        const reply = String(extractResponseText(s.provider, await res.json()))
-            .replace(/\s+/g, " ").trim().slice(0, 80);
-        if (!reply) return null;
-        petChatHistory.push({ role: "user", text: text }, { role: "assistant", text: reply });
-        petChatHistory = petChatHistory.slice(-12);
-        return reply;
-    } catch (e) {
-        return null;
-    } finally {
-        if (timer) clearTimeout(timer);
-    }
-}
-
-async function petChatAnswer(text) {
-    const reply = await askPetLLM(text);
-    return reply ? getPetLine("idle", reply) : petChatReply(text);
 }
 
 function scheduleNextPetComment() {
@@ -3426,7 +3323,6 @@ function initRoomSystem() {
     renderCurrency();
     setupRoomEventListeners();
     setupRoomDragToScroll();
-    setupRoomPullToCompact();
 
     if (!roomData.pet) {
         openPetSelectModal();
@@ -3815,6 +3711,7 @@ function attachSelectionControls(uid) {
         e.stopPropagation();
         handle.setPointerCapture(e.pointerId);
         const startX = e.clientX;
+        const startY = e.clientY;
         const startScale = getCurrentScale(uid);
 
         const onMove = (ev) => {
@@ -3991,29 +3888,6 @@ function setupRoomEventListeners() {
         document.getElementById("modal-daily-login")?.classList.remove("open");
     });
 
-    const petChatInput = document.getElementById("pet-chat-input");
-    const petChatSend = document.getElementById("pet-chat-send");
-    const sendPetChat = async () => {
-        if (!petChatInput || petChatBusy) return;
-        const text = petChatInput.value.trim();
-        petChatInput.value = "";
-        if (!roomData.pet) return;
-        if (petWakeUp()) { petSay(getPetLine("idle", "ん…なあに？")); vibrate(15); return; }
-        if (!text) { petSay(petChatReply("")); return; }
-        petChatBusy = true;
-        petSay("…");
-        try {
-            petSay(await petChatAnswer(text));
-        } finally {
-            petChatBusy = false;
-        }
-        vibrate(15);
-    };
-    petChatSend?.addEventListener("click", sendPetChat);
-    petChatInput?.addEventListener("keydown", (e) => {
-        if (e.key === "Enter") sendPetChat();
-    });
-
     document.getElementById("btn-open-shop")?.addEventListener("click", openShop);
     document.getElementById("btn-close-shop")?.addEventListener("click", () => {
         document.getElementById("modal-shop")?.classList.remove("open");
@@ -4036,13 +3910,6 @@ function setupRoomEventListeners() {
         if (petWakeUp()) return;
         triggerPetHop();
         if (Math.random() < 0.6) spawnPetReaction("favorite");
-    });
-
-    document.getElementById("pet-float-grip")?.addEventListener("click", () => {
-        if (toggleRoomCompact()) {
-            playPop();
-            vibrate(15);
-        }
     });
 
     window.addEventListener("resize", resetRoomCompactBase);
@@ -4457,12 +4324,6 @@ function buildDailyBarSvg(daily, options) {
         return `<rect x="${x.toFixed(2)}" y="${y.toFixed(2)}" width="${barW.toFixed(2)}" height="${h.toFixed(2)}" fill="${fill}" rx="1"><title>${svgEscape(title)}</title></rect>`;
     }).join("");
 
-    let avgLine = "";
-    if (opts.showAverage && average > 0) {
-        const y = padTop + plotH - (Math.min(average, max) / max) * plotH;
-        avgLine = `<line x1="0" y1="${y.toFixed(2)}" x2="${W}" y2="${y.toFixed(2)}" stroke="var(--muted)" stroke-width="1" stroke-dasharray="3 3" opacity="0.8"/>`;
-    }
-
     const ticks = daily.filter(d => d.day === 1 || d.day % 7 === 1).map(d => {
         const i = d.day - 1;
         const x = i * (barW + gap) + barW / 2;
@@ -4470,7 +4331,7 @@ function buildDailyBarSvg(daily, options) {
     }).join("");
 
     return `<svg class="daily-chart" viewBox="0 0 ${W} ${H}" role="img" aria-label="日別の支出グラフ">
-        ${bars}${avgLine}
+        ${bars}
         <line x1="0" y1="${padTop + plotH}" x2="${W}" y2="${padTop + plotH}" stroke="var(--line-strong)" stroke-width="1"/>
         ${ticks}
     </svg>`;
@@ -5243,205 +5104,136 @@ async function recognizeReceipt(dataUrl, settings) {
 //   ・「設定 → 使い方をもう一度見る」から、いつでも見直せる
 // ==========================================
 
-const ONBOARDING_KEY = "yoyu_aru_onboarding";
-
-const ONBOARDING_STEPS = [
-    {
-        id: "budget",
-        title: "① 今月の予算を決めよう",
-        body: "上の予算ボックスの えんぴつ をタップして、今月使ってよい金額を入れてね。予算の80%をこえると、ゲージが赤くなってペットが心配するよ。",
-        target: "#budget-box",
-        action: "btn-edit-budget"
-    },
-    {
-        id: "expense",
-        title: "② 1件、記録してみよう",
-        body: "右下の ＋ をタップして、金額とカテゴリを入れて「記録する」を押してね。1件記録するごとに100ポイントと、なかよし度が1たまるよ（なかよし度は1日5まで）。",
-        target: "#fab-add-expense"
-    },
-    {
-        id: "pet",
-        title: "③ ペットと遊ぼう",
-        body: "ペットをタップすると、今月の予算の余裕に合わせて話してくれるよ。下の入力欄から話しかけることもできます。たまったポイントは、右上のメニューのショップやガチャで使えます。",
-        target: "#pet-room-preview",
-        next: true
-    },
-    {
-        id: "finish",
-        title: "④ 最後に、だいじなこと",
-        body: "データはこの端末の中だけに保存されます。機種変更や万一に備えて、メニューの「データ管理」から、CSVを書き出して保存しておこう。部屋は下に引くと小さくなるよ。",
-        target: "#btn-open-more",
-        final: true
-    }
-];
+const ONBOARDING_KEY = "yoyu_aru_usage_guide_v2";
+const PET_GUIDE_KEY = "yoyu_aru_pet_guide";
 
 function readOnboardingState() {
     try {
-        const s = JSON.parse(localStorage.getItem(ONBOARDING_KEY) || "null");
-        return (s && typeof s === "object") ? s : null;
+        const v = JSON.parse(localStorage.getItem(ONBOARDING_KEY) || "null");
+        return (v && typeof v === "object") ? v : null;
     } catch (e) { return null; }
 }
-
 function writeOnboardingState(state) {
     try { localStorage.setItem(ONBOARDING_KEY, JSON.stringify(state)); } catch (e) { /* 保存できなくても進められる */ }
 }
 
-function clearOnboardingHighlight() {
-    document.querySelectorAll(".onb-highlight").forEach(el => el.classList.remove("onb-highlight"));
-}
-
-function removeOnboardingCard() {
-    clearOnboardingHighlight();
-    document.getElementById("onboarding-card")?.remove();
+// 画面中央に出す、最小限の案内カード
+function showCenterGuide(id, title, rows, onClose, okLabel, parent) {
+    document.getElementById(id)?.remove();
+    const overlay = document.createElement("div");
+    overlay.id = id;
+    overlay.className = "guide-overlay";
+    overlay.setAttribute("role", "dialog");
+    overlay.innerHTML =
+        `<div class="guide-card"><h4 class="guide-title"></h4><ul class="guide-list"></ul>` +
+        `<button type="button" class="primary-button guide-ok">はじめる</button></div>`;
+    overlay.querySelector(".guide-title").textContent = title;
+    overlay.querySelector(".guide-ok").textContent = okLabel || "はじめる";
+    const ul = overlay.querySelector(".guide-list");
+    rows.forEach(r => {
+        const li = document.createElement("li");
+        li.innerHTML = `<span class="material-icons-round"></span><span class="guide-text"></span>`;
+        li.children[0].textContent = r.icon;
+        li.children[1].textContent = r.text;
+        ul.appendChild(li);
+    });
+    overlay.querySelector(".guide-ok").addEventListener("click", () => {
+        overlay.remove();
+        if (onClose) onClose();
+    });
+    (parent || document.querySelector(".app-container") || document.body).appendChild(overlay);
 }
 
 function finishOnboarding() {
-    removeOnboardingCard();
+    document.getElementById("usage-guide")?.remove();
     writeOnboardingState({ done: true, finishedAt: new Date().toISOString() });
 }
 
-// scrollIntoView は外枠(.app-container)まで動かして画面全体がずれることがあるので、
-// 中身のスクロール領域（.app-content）だけを動かす。
-function scrollTargetIntoContent(target) {
-    const content = document.querySelector(".app-content");
-    if (!content || !content.contains(target)) return;     // 固定表示の要素は動かさない
-    const c = content.getBoundingClientRect();
-    const t = target.getBoundingClientRect();
-    const top = content.scrollTop + (t.top - c.top) - 16;
-    try { content.scrollTo({ top: Math.max(0, top), behavior: "smooth" }); } catch (e) { content.scrollTop = Math.max(0, top); }
-}
-
-// ヘッダーのすぐ下（部屋の上）に置く。下側には予算の「保存」や ＋ ボタンがあるので避ける。
-function positionOnboardingCard() {
-    const card = document.getElementById("onboarding-card");
-    const header = document.querySelector(".app-header");
-    if (!card) return;
-    const bottom = header ? header.getBoundingClientRect().bottom : 60;
-    card.style.top = Math.round(bottom + 6) + "px";
-}
-window.addEventListener("resize", positionOnboardingCard);
-
-function showOnboardingStep(index) {
-    const step = ONBOARDING_STEPS[index];
-    if (!step) { finishOnboarding(); return; }
-    writeOnboardingState({ done: false, step: index });
-    removeOnboardingCard();
-
-    const card = document.createElement("div");
-    card.id = "onboarding-card";
-    card.className = "onboarding-card";
-    card.setAttribute("role", "dialog");
-    card.setAttribute("aria-label", "使い方ガイド");
-
-    const dots = ONBOARDING_STEPS.map((_, i) => `<span class="onb-dot${i === index ? " is-active" : ""}"></span>`).join("");
-    card.innerHTML =
-        `<div class="onb-head"><span class="onb-dots">${dots}</span>` +
-        `<button type="button" class="onb-skip" id="onb-skip">スキップ</button></div>` +
-        `<h4 class="onb-title"></h4><p class="onb-body"></p>` +
-        `<div class="onb-actions"></div>`;
-    card.querySelector(".onb-title").textContent = step.title;
-    card.querySelector(".onb-body").textContent = step.body;
-
-    const actions = card.querySelector(".onb-actions");
-    if (step.final) {
-        const open = document.createElement("button");
-        open.type = "button";
-        open.className = "primary-button-sm";
-        open.textContent = "データ管理を開く";
-        open.addEventListener("click", () => {
-            finishOnboarding();
-            document.getElementById("btn-open-data")?.click();
-        });
-        const done = document.createElement("button");
-        done.type = "button";
-        done.className = "secondary-button";
-        done.textContent = "はじめる";
-        done.addEventListener("click", finishOnboarding);
-        actions.appendChild(open);
-        actions.appendChild(done);
-    } else if (step.next) {
-        const nextBtn = document.createElement("button");
-        nextBtn.type = "button";
-        nextBtn.className = "primary-button-sm";
-        nextBtn.textContent = "次へ";
-        nextBtn.addEventListener("click", () => showOnboardingStep(index + 1));
-        actions.appendChild(nextBtn);
-    } else if (step.action) {
-        const go = document.createElement("button");
-        go.type = "button";
-        go.className = "primary-button-sm";
-        go.textContent = "予算を入れる";
-        go.addEventListener("click", () => document.getElementById(step.action)?.click());
-        actions.appendChild(go);
-    }
-
-    card.querySelector("#onb-skip").addEventListener("click", finishOnboarding);
-    // .app-container の中に置く。こうするとモーダル（z-index:100）より後ろに回り、
-    // 「保存」などのボタンをカードが覆わない。
-    (document.querySelector(".app-container") || document.body).appendChild(card);
-    positionOnboardingCard();
-
-    const target = document.querySelector(step.target);
-    if (target) {
-        target.classList.add("onb-highlight");
-        scrollTargetIntoContent(target);
-    }
-}
-
-// force=true は「もう一度見る」。最初からやり直す。
+// force=true は「もう一度見る」
 function startOnboarding(force) {
-    const state = readOnboardingState();
     if (!force) {
-        if (state) return;                       // 開始済み、または完了済み
-        const hasData = (typeof activeExpenses === "function" && activeExpenses().length > 0);
-        if (hasData) {                           // CSVを読み込んだ人など
-            writeOnboardingState({ done: true, skipped: "has-data" });
-            return;
-        }
+        if (readOnboardingState()) return;
     }
-    showOnboardingStep(0);
+    showCenterGuide("usage-guide", "使い方", [
+        { icon: "edit", text: "予算を入れる" },
+        { icon: "add_circle", text: "支出を記録する" },
+        { icon: "pets", text: "記録でポイント → ペットの部屋へ" },
+        { icon: "storage", text: "メニューからCSVで保存" }
+    ], finishOnboarding);
 }
 
-// app.js から呼ばれる：budget / expense が完了したら次へ
-function onboardingNotify(eventName) {
-    const state = readOnboardingState();
-    if (!state || state.done) return;
-    const index = Number(state.step) || 0;
-    const step = ONBOARDING_STEPS[index];
-    if (!step || step.id !== eventName) return;
-    // トーストやペットの反応が見えるように、少し待ってから次へ
-    setTimeout(() => {
-        const now = readOnboardingState();
-        if (now && !now.done && Number(now.step) === index) showOnboardingStep(index + 1);
-    }, 900);
+// 旧ステップ式ガイドの名残。今は何もしない。
+function onboardingNotify() {}
+
+// マイペットページ：初めて開いたときだけ
+function maybeShowPetGuide() {
+    let seen = false;
+    try { seen = localStorage.getItem(PET_GUIDE_KEY) === "1"; } catch (e) {}
+    if (seen) return;
+    try { localStorage.setItem(PET_GUIDE_KEY, "1"); } catch (e) {}
+    showCenterGuide("pet-guide", "マイペット", [
+        { icon: "touch_app", text: "ペットをタップして遊ぶ" },
+        { icon: "casino", text: "ポイントでガチャ・ショップ" },
+        { icon: "edit", text: "「編集」で模様替え" }
+    ], null, "OK", document.getElementById("room-page"));
 }
 
-// 入力中（キーボードが出ているとき）は、カードが入力欄に重ならないよう一時的に引っ込める
-let onbAwayTimer = null;
-function isTextField(el) {
-    return !!el && /^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName);
+// ==========================================
+// マイルーム専用ページ／横画面ロック
+// ==========================================
+// スマホを縦に持っているあいだは「横向きにしてください」を出し、マイペットは使わせない
+function updateRoomOrientation() {
+    const page = document.getElementById("room-page");
+    if (!page || !page.classList.contains("open")) return;
+    const needLandscape = window.innerHeight > window.innerWidth && window.innerWidth <= 820;
+    page.classList.toggle("need-landscape", needLandscape);
+    document.getElementById("rotate-notice")?.setAttribute("aria-hidden", needLandscape ? "false" : "true");
+    if (!needLandscape) {
+        centerRoomPreviewOnPet();
+        maybeShowPetGuide();
+    }
 }
-document.addEventListener("focusin", (e) => {
-    if (!isTextField(e.target)) return;
-    clearTimeout(onbAwayTimer);
-    document.getElementById("onboarding-card")?.classList.add("is-away");
-});
-document.addEventListener("focusout", () => {
-    clearTimeout(onbAwayTimer);
-    onbAwayTimer = setTimeout(() => {
-        if (isTextField(document.activeElement)) return;
-        document.getElementById("onboarding-card")?.classList.remove("is-away");
-    }, 250);
-});
 
-// 起動時：途中で閉じていたら続きから再開する
+function openRoomPage() {
+    const page = document.getElementById("room-page");
+    if (!page) return;
+    page.classList.add("open");
+    page.setAttribute("aria-hidden", "false");
+    // 対応する端末（ホーム画面から開いたアプリ等）では本当に横向きにロックする
+    try { screen.orientation?.lock?.("landscape").catch(() => {}); } catch (e) {}
+    renderRoomPreview();
+    updateRoomOrientation();
+    requestAnimationFrame(centerRoomPreviewOnPet);
+}
+function closeRoomPage() {
+    const page = document.getElementById("room-page");
+    if (!page) return;
+    page.classList.remove("open", "need-landscape");
+    page.setAttribute("aria-hidden", "true");
+    try { screen.orientation?.unlock?.(); } catch (e) {}
+}
+
 document.addEventListener("DOMContentLoaded", () => {
+    document.getElementById("btn-open-room-page")?.addEventListener("click", openRoomPage);
+    document.getElementById("btn-close-room-page")?.addEventListener("click", closeRoomPage);
+    document.getElementById("btn-rotate-back")?.addEventListener("click", closeRoomPage);
+    // Esc キーで、いちばん手前の画面から順に閉じる（PC向け）
+    document.addEventListener("keydown", (e) => {
+        if (e.key !== "Escape") return;
+        const editor = document.getElementById("room-editor");
+        if (editor?.classList.contains("open")) { document.getElementById("btn-close-room-editor")?.click(); return; }
+        const open = [...document.querySelectorAll(".modal-overlay.open")].filter(m => m.querySelector(".close-button"));
+        if (open.length) { open[open.length - 1].querySelector(".close-button").click(); return; }
+        if (document.getElementById("room-page")?.classList.contains("open")) closeRoomPage();
+    });
+    document.getElementById("btn-room-gacha")?.addEventListener("click", () => openGachaModal());
+    document.getElementById("btn-room-shop")?.addEventListener("click", () => openShop());
+    window.addEventListener("resize", updateRoomOrientation);
+    window.addEventListener("orientationchange", () => setTimeout(updateRoomOrientation, 200));
+    // すでにペットがいる人にも、使い方を一度だけ見せる
     setTimeout(() => {
-        const state = readOnboardingState();
-        if (state && !state.done && typeof roomData !== "undefined" && roomData.pet) {
-            showOnboardingStep(Math.min(Number(state.step) || 0, ONBOARDING_STEPS.length - 1));
-        }
-    }, 700);
+        if (typeof roomData !== "undefined" && roomData && roomData.pet) startOnboarding(false);
+    }, 900);
 });
 
 // ================================================================
@@ -5472,7 +5264,9 @@ const GACHA_POOL = [
     { kind: "pet", id: "hamster",   rarity: 2 },
     { kind: "map", id: "seaside",   rarity: 2 },
     { kind: "pet", id: "panda",     rarity: 3 },
-    { kind: "map", id: "nightloft", rarity: 3 }
+    { kind: "map", id: "nightloft", rarity: 3 },
+    { kind: "map", id: "wallpaper_cute_pastel", rarity: 2 },
+    { kind: "map", id: "wallpaper_modern_gray", rarity: 2 }
 ];
 
 let gachaBusy = false;
