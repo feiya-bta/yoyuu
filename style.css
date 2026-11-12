@@ -184,7 +184,7 @@ html, body {
 ========================================== */
 .room-section {
     flex-shrink: 0;
-    padding: 0 22px;
+    padding: 0;
 }
 
 .room-section-title {
@@ -3027,38 +3027,20 @@ html, body, .app-container { touch-action: manipulation; }
 ========================================== */
 /* フルページ表示の画面は角丸なし */
 .shop-overlay .modal-content { border-radius: 0; }
-.room-page .shop-overlay .modal-content { max-width: none; }
-.app-title { font-size: 0.95rem; font-weight: 600; color: var(--ink); letter-spacing: 0.04em; }
 .room-editor { max-width: none; }
 
-/* ---- マイルーム専用ページ ---- */
-.room-page {
-    position: fixed; inset: 0; z-index: 50; display: none; flex-direction: column;
-    background: var(--bg);
-}
-.room-page.open { display: flex; }
-.room-page-bar {
-    flex-shrink: 0; display: flex; align-items: center; gap: 12px;
-    padding: calc(8px + env(safe-area-inset-top)) max(14px, env(safe-area-inset-right)) 8px max(14px, env(safe-area-inset-left));
-}
-.room-page-bar .currency-pill { margin: 0 auto 0 4px; padding-left: 4px; }
-.room-bar-actions { display: flex; gap: 8px; }
-.room-bar-btn {
-    display: flex; align-items: center; gap: 4px; padding: 6px 12px;
+/* ---- マイペット（メイン画面） ---- */
+.room-section { margin: 0 0 14px 0; }
+.room-section .pet-room-preview { margin: 0; box-shadow: none; border-radius: 10px; border: 1px solid var(--line-strong); }
+.room-scroll-wrapper { touch-action: pan-x pan-y; }
+.room-edit-btn {
+    position: absolute; top: 8px; right: 8px; z-index: 20;
+    width: 32px; height: 32px; display: flex; align-items: center; justify-content: center;
     border: 1px solid var(--line-strong); border-radius: var(--radius-soft);
-    background: var(--surface); color: var(--ink); font-size: 0.72rem; cursor: pointer;
+    background: rgba(255,253,248,0.92); color: var(--ink-soft); cursor: pointer;
 }
-.room-bar-btn .material-icons-round { font-size: 17px; color: var(--accent); }
-.room-bar-btn:active { background: rgba(95,109,78,0.12); }
-.room-page .pet-room-preview {
-    flex: 1; min-height: 0; width: 100%; max-height: none; aspect-ratio: auto;
-    margin: 0; border-radius: 0; border-width: 1px 0 0 0; box-shadow: none;
-}
-.room-page .room-scroll-wrapper { container-type: size; }
-.room-page .room-scene { height: 100%; width: auto; aspect-ratio: 2.565; min-width: 100%; }
-@supports (width: 1cqh) {
-    .room-page .room-item { width: 48cqh; }
-}
+.room-edit-btn .material-icons-round { font-size: 17px; color: var(--accent); }
+.room-edit-btn:active { background: rgba(95,109,78,0.14); }
 .room-editor-scroll-wrapper { container-type: size; max-height: none; flex: 1; min-height: 0; aspect-ratio: auto; width: 100%; margin-top: 0; border-radius: 0; }
 .room-editor-canvas { height: 100%; width: auto; aspect-ratio: 2.565; min-width: 100%; }
 @supports (width: 1cqh) {
@@ -3102,9 +3084,16 @@ html, body, .app-container { touch-action: manipulation; }
 .planner-content input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
 .planner-content input[type="number"]::-webkit-outer-spin-button,
 .planner-content input[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
-.yen-field { position: relative; display: block; }
-.yen-field .yen-prefix { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: var(--ink-soft); font-size: 0.9rem; pointer-events: none; }
-.yen-field input { padding-left: 30px; width: 100%; }
+/* 通貨記号つき入力欄：¥ は枠の左端に固定し、数字はその右から始まる（flex なので重ならない） */
+.yen-field {
+    display: flex; align-items: center; gap: 8px;
+    border-bottom: 1px solid var(--line-strong);
+    transition: border-color 0.15s ease;
+}
+.yen-field:focus-within { border-bottom-color: var(--accent); }
+.yen-field .yen-prefix { flex: 0 0 auto; color: var(--ink-soft); font-size: 0.9rem; line-height: 1; user-select: none; }
+.form-group .yen-field input[type="number"] { flex: 1 1 auto; width: auto; min-width: 0; padding: 7px 0; border: 0; }
+@media (pointer: coarse) { .yen-field .yen-prefix { font-size: 16px; } }
 .difficulty-heading {
     display: inline-flex; align-items: center; gap: 6px; margin-bottom: 4px; padding: 5px 12px 5px 8px;
     background: var(--accent); color: #fff; border-radius: 999px; font-weight: 700;
@@ -3135,24 +3124,9 @@ html, body, .app-container { touch-action: manipulation; }
 .gacha-lead, .gacha-remain { text-align: left; }
 
 
-/* ---- 縦持ち：横向きにするまでマイペットは使えない ---- */
-.rotate-notice {
-    display: none; position: absolute; inset: 0; z-index: 500;
-    background: var(--bg); color: var(--ink);
-    flex-direction: column; align-items: center; justify-content: center; gap: 10px; text-align: center; padding: 24px;
-}
-.rotate-notice > .material-icons-round { font-size: 64px; color: var(--accent); animation: rotateHint 2.2s ease-in-out infinite; }
-.rotate-title { font-size: 1.05rem; font-weight: 700; }
-.rotate-sub { font-size: 0.8rem; color: var(--muted); margin-bottom: 8px; }
-.room-page.need-landscape .rotate-notice { display: flex; }
-@keyframes rotateHint {
-    0%, 20% { transform: rotate(0deg); }
-    60%, 100% { transform: rotate(-90deg); }
-}
-
 /* ---- PC・タブレット向け ---- */
 @media (hover: hover) {
-    .icon-button:hover, .room-bar-btn:hover, .month-nav-btn:hover { background: rgba(95,109,78,0.10); }
+    .icon-button:hover, .budget-nav-btn:hover { background: rgba(95,109,78,0.10); }
     .more-item:hover { background: rgba(95,109,78,0.07); }
     .timeline-item:hover, .expense-card:hover { background: rgba(95,109,78,0.04); }
     button, .tray-item, .shop-card, .collection-card { cursor: pointer; }
@@ -3165,7 +3139,6 @@ html, body, .app-container { touch-action: manipulation; }
     .col-left, .col-right { min-width: 0; }
     .col-right .section-title-bar:first-child { margin-top: 6px; }
     .fab { right: max(28px, calc(50vw - 560px + 32px)); }
-    .app-title { font-size: 1.1rem; }
 
     /* ダイアログは中央に浮かせる */
     .modal-overlay, .modal-overlay.shop-overlay { align-items: center; }
@@ -3175,19 +3148,119 @@ html, body, .app-container { touch-action: manipulation; }
         width: min(720px, 92vw); max-width: none; height: auto; max-height: min(86vh, 820px);
         border-radius: 10px; margin: 0 auto;
     }
-    .room-page .shop-overlay .modal-content { width: min(1000px, 94vw); height: min(86vh, 700px); }
 
-    /* マイペットは中央の「額縁」に収める（巨大化させない） */
-    .room-page-bar { padding: 14px 28px; }
-    .room-page .pet-room-preview {
-        flex: none; align-self: center; margin: auto 0;
-        width: min(1280px, calc(100vw - 56px)); height: min(540px, calc(100dvh - 130px));
-        border-radius: 10px; border: 1px solid var(--line-strong);
-    }
     .room-editor { align-items: center; }
     .room-editor-scroll-wrapper {
         flex: none; width: min(1280px, calc(100vw - 56px)); height: min(540px, calc(100dvh - 260px));
         margin: 8px auto 0; border-radius: 10px;
     }
     .room-editor-toolbar, .room-editor-actions, .room-editor-tray { width: min(1280px, calc(100vw - 56px)); }
+}
+
+
+/* ==========================================
+   v3.3 変更分
+========================================== */
+.app-header { gap: 12px; }
+.budget-box-header { align-items: center; flex-wrap: wrap; gap: 4px 8px; }
+.budget-heading { flex-direction: row; align-items: center; gap: 2px; flex: 1 1 auto; }
+.budget-box-label { white-space: nowrap; }
+.budget-nav-btn {
+    width: 26px; height: 26px; flex-shrink: 0; display: flex; align-items: center; justify-content: center;
+    border: 0; background: none; border-radius: var(--radius-soft); color: var(--muted); cursor: pointer;
+}
+.budget-nav-btn span { font-size: 20px; }
+.budget-nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+.budget-header-actions { display: flex; align-items: center; gap: 6px; margin-left: auto; }
+.budget-today-btn {
+    height: 26px; padding: 0 10px; display: inline-flex; align-items: center; justify-content: center;
+    border: 1px solid var(--accent); border-radius: var(--radius-soft);
+    background: var(--accent); color: #fff; font-size: 0.7rem; font-weight: 700; white-space: nowrap; cursor: pointer;
+}
+
+.material-icons-round { font-family: 'Material Icons Round' !important; }
+.lang-select { width: 100%; padding: 10px 12px; border: 1px solid var(--line-strong); border-radius: var(--radius-soft); background: var(--surface); color: var(--ink); font-size: 0.9rem; }
+
+
+/* ---- 言語ごとのフォント（Google Fonts） ---- */
+:root { --font-main: 'M PLUS Rounded 1c', sans-serif; }
+html[lang="en"], html[lang="vi"] { --font-main: 'Nunito', 'M PLUS Rounded 1c', sans-serif; }
+/* 簡体字：数字・英字は丸い Nunito、漢字は Noto Sans SC */
+html[lang="zh-Hans"] { --font-main: 'Nunito', 'Noto Sans SC', 'PingFang SC', 'Microsoft YaHei', sans-serif; }
+/* 繁体字：Huninn（粉圓）。収録外の字は Noto Sans TC で補う */
+html[lang="zh-Hant"] { --font-main: 'Huninn', 'Noto Sans TC', 'PingFang TC', 'Microsoft JhengHei', sans-serif; }
+html[lang="zh-Hant"] * { font-synthesis: none; }   /* Huninn は太字が無いので、無理に太らせない */
+
+/* ==========================================
+   v3.4 変更分
+========================================== */
+/* ---- マイルーム：予算ボックスと同じ横幅（縦の高さは従来のまま） ---- */
+.room-section { container-type: inline-size; display: grid; grid-template-rows: 1fr; margin: 0 0 14px 0;
+    transition: grid-template-rows 0.42s cubic-bezier(.4,0,.2,1), opacity 0.32s ease, transform 0.42s cubic-bezier(.4,0,.2,1), margin 0.42s cubic-bezier(.4,0,.2,1); }
+.room-section-inner { min-height: 0; overflow: hidden; border-radius: 10px; }
+.room-section .pet-room-preview { width: 100%; aspect-ratio: auto; max-height: none;
+    height: calc((100cqw - 44px) / var(--room-ratio, 1.794)); cursor: pointer; }
+.room-section .room-scene { height: 100%; width: auto; aspect-ratio: 2.565; min-width: 100%; }
+.room-section.is-hidden { grid-template-rows: 0fr; opacity: 0; transform: translateY(-8px) scale(0.98); margin-bottom: 0; pointer-events: none; }
+.room-section.is-hidden .room-section-inner { visibility: hidden; transition: visibility 0s 0.42s; }
+.room-section.no-anim, .room-section.no-anim .room-section-inner { transition: none !important; }
+.paw-toggle .material-icons-round { transition: transform 0.35s cubic-bezier(.34,1.56,.64,1), opacity 0.25s ease; }
+.paw-toggle.is-off .material-icons-round { opacity: 0.4; transform: rotate(-18deg) scale(0.92); }
+.paw-toggle.pop .material-icons-round { animation: pawPop 0.45s ease; }
+@keyframes pawPop { 0% { transform: scale(1); } 40% { transform: scale(1.25) rotate(12deg); } 100% { transform: scale(1); } }
+@media (prefers-reduced-motion: reduce) {
+    .room-section, .room-section-inner, .paw-toggle .material-icons-round { transition: none !important; animation: none !important; }
+}
+
+/* ---- 好感度（ハート＋数字だけの共通表示） ---- */
+.affection-badge {
+    position: absolute; top: 8px; left: 8px; z-index: 20; pointer-events: none;
+    display: flex; align-items: center; gap: 5px; padding: 3px 9px 3px 6px;
+    background: rgba(255,253,248,0.92); border: 1px solid var(--line-strong); border-radius: 999px;
+    font-size: 0.68rem; color: var(--ink-soft); font-variant-numeric: tabular-nums; line-height: 1;
+}
+.affection-badge .material-icons-round { font-size: 14px; color: #e8647a; }
+.affection-bar { width: 34px; height: 4px; border-radius: 999px; background: rgba(95,109,78,0.16); overflow: hidden; }
+.affection-bar-fill { display: block; height: 100%; width: 0; border-radius: 999px; background: #e8647a; transition: width 0.5s ease; }
+.affection-badge.is-full .affection-bar-fill { background: #d94a65; }
+
+/* ---- ガイド／確認（同じカード構造） ---- */
+.guide-desc { margin: 0 0 14px; font-size: 0.82rem; line-height: 1.7; color: var(--ink-soft); }
+.guide-actions { display: flex; flex-direction: column; gap: 8px; margin-top: 4px; }
+.guide-actions .guide-ok { margin-top: 0; }
+.guide-cancel { padding: 10px; border: 0; background: none; color: var(--muted); font-size: 0.82rem; cursor: pointer; }
+.primary-button.is-danger { background: var(--danger); border-color: var(--danger); }
+
+/* ---- 支出カード：メモはカテゴリと同じ行、時刻は編集・削除と同じ行 ---- */
+.card-head { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.card-head .category-badge { flex-shrink: 0; align-self: center; }
+.card-memo { flex: 1 1 auto; min-width: 0; font-size: 0.82rem; color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.card-meta { display: flex; align-items: center; gap: 12px; }
+
+/* ---- レシート読み取り ---- */
+.receipt-scan { margin-bottom: 16px; padding-bottom: 14px; border-bottom: 1px dashed var(--line-strong); }
+.receipt-scan-btn { width: 100%; display: flex; align-items: center; justify-content: center; gap: 6px; cursor: pointer; }
+.receipt-scan-btn.is-busy { opacity: 0.55; pointer-events: none; }
+.receipt-note { margin: 8px 0 0; font-size: 0.72rem; line-height: 1.6; }
+.receipt-status { margin: 6px 0 0; font-size: 0.74rem; color: var(--accent); }
+.receipt-status.is-error { color: var(--danger); }
+
+/* ---- ルーム編集：ガチャ・ショップ、縦向きレイアウト ---- */
+.room-editor-shortcuts { display: flex; gap: 2px; margin-left: 10px; flex-shrink: 0; }
+#modal-gacha, #modal-shop, #modal-language { z-index: 250; }
+@media (orientation: landscape) and (max-height: 559px) {
+    .shop-overlay .modal-content { max-width: none; width: 100%; }
+}
+@media (orientation: portrait) {
+    .room-editor { align-items: stretch; }
+    .room-editor-hint { display: none; }
+    .room-editor-shortcuts { margin-left: auto; }
+    .room-editor-toolbar, .room-editor-actions, .room-editor-tray { width: 100%; }
+    .room-editor-scroll-wrapper { flex: none; width: 100%; height: 44dvh; max-height: none; margin: 0; }
+    .room-editor-tray { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; padding-bottom: calc(12px + env(safe-area-inset-bottom)); }
+    .room-editor-tray-items { flex: 1 1 auto; flex-wrap: wrap; align-content: flex-start; overflow-x: hidden; overflow-y: auto; gap: 12px; padding: 4px 2px 8px; }
+    .tray-item { width: 68px; height: 68px; }
+    /* ガチャ：縦向きは1列で表示 */
+    #gacha-pane-pull { display: block; }
+    #gacha-pane-pull > .gacha-machine { margin: 0 auto 14px; }
 }

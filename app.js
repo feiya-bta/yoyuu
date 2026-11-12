@@ -33,7 +33,7 @@ function localMonthKey(value) {
 function formatMonthLabel(monthKey) {
     const parts = String(monthKey || "").split("-");
     if (parts.length < 2) return "";
-    return `${parts[0]}年${parseInt(parts[1], 10)}月`;
+    return I18N.monthLabel(parts[0], parseInt(parts[1], 10));
 }
 
 function addMonths(monthKey, delta) {
@@ -248,7 +248,7 @@ function escapeHtml(value) {
 // 端末ごとの設定（CSVには含めない）
 // ------------------------------------------
 const PREFS_KEY = "yoyu_aru_prefs";
-const DEFAULT_PREFS = { sound: true, haptics: true, lastBackupAt: null, backupRemindedAt: null };
+const DEFAULT_PREFS = { sound: true, haptics: true, lastBackupAt: null, backupRemindedAt: null, roomHidden: false };
 let appPrefs = loadPrefs();
 
 function loadPrefs() {
@@ -428,7 +428,7 @@ function isViewingCurrentMonth() {
 }
 
 function getCurrentPeriodLabel() {
-    return `${formatMonthLabel(selectedMonthKey)}の予算`;
+    return t("{m}の予算", { m: formatMonthLabel(selectedMonthKey) });
 }
 
 function renderPeriodLabel() {
@@ -449,9 +449,6 @@ function setViewMonth(monthKey) {
 }
 
 function renderMonthNav() {
-    const label = document.getElementById("month-nav-label");
-    if (label) label.textContent = formatMonthLabel(selectedMonthKey);
-
     const nextBtn = document.getElementById("btn-next-month");
     if (nextBtn) nextBtn.disabled = selectedMonthKey >= getCurrentMonthKey();
 
@@ -462,7 +459,7 @@ function renderMonthNav() {
 
 function renderBreakdownTitle() {
     const el = document.getElementById("breakdown-title-text");
-    if (el) el.textContent = `${formatMonthLabel(selectedMonthKey)}の内訳`;
+    if (el) el.textContent = t("{m}の内訳", { m: formatMonthLabel(selectedMonthKey) });
 }
 
 // ==========================================
@@ -493,8 +490,8 @@ function renderBudgetSummary() {
     if (budget <= 0) {
         if (remainingText) {
             remainingText.textContent = isViewingCurrentMonth()
-                ? "予算を決めよう"
-                : "予算なし";
+                ? t("予算を決めよう")
+                : t("予算なし");
         }
         if (progressFill) progressFill.style.width = "0%";
         petWasOverBudget = false;
@@ -509,8 +506,8 @@ function renderBudgetSummary() {
     const remaining = budget - spent;
     if (remainingText) {
         remainingText.innerHTML = remaining >= 0
-            ? `<span class="remain-prefix">残り</span> ${remaining.toLocaleString()} 円`
-            : `${Math.abs(remaining).toLocaleString()} 円 超過`;
+            ? `<span class="remain-prefix">${t("残り")}</span> ${fmtYen(remaining)}`
+            : `${fmtYen(Math.abs(remaining))} ${t("超過")}`;
     }
 
     if (budgetBox) {
@@ -558,8 +555,8 @@ function renderCategoryManageList() {
         row.innerHTML = `
             <span class="category-manage-name">${escapeHtml(cat.name)}</span>
             <span class="category-manage-actions">
-                <span class="material-icons-round" data-cat-action="edit" data-cat-id="${escapeHtml(cat.id)}" title="編集">edit</span>
-                <span class="material-icons-round delete-icon" data-cat-action="delete" data-cat-id="${escapeHtml(cat.id)}" title="削除">delete</span>
+                <span class="material-icons-round" data-cat-action="edit" data-cat-id="${escapeHtml(cat.id)}" title="${t('編集')}">edit</span>
+                <span class="material-icons-round delete-icon" data-cat-action="delete" data-cat-id="${escapeHtml(cat.id)}" title="${t('削除')}">delete</span>
             </span>
         `;
         list.appendChild(row);
@@ -571,7 +568,7 @@ function openCategoryForm(mode) {
     const form = document.getElementById("category-edit-form");
     const saveBtn = document.getElementById("btn-save-category");
     if (form) form.classList.add("open");
-    if (saveBtn) saveBtn.textContent = mode === "edit" ? "更新する" : "追加する";
+    if (saveBtn) saveBtn.textContent = mode === "edit" ? "更新する" : t("追加する");
 }
 
 function closeCategoryForm() {
@@ -647,8 +644,8 @@ function renderExpenseTimeline() {
 
     if (monthExpenses.length === 0) {
         container.innerHTML = `<p class="timeline-empty-hint">${
-            isViewingCurrentMonth() ? "今月の支出はまだ記録されていません"
-                                    : `${formatMonthLabel(monthKey)}の支出は記録されていません`
+            isViewingCurrentMonth() ? t("今月の支出はまだ記録されていません")
+                                    : t("{m}の支出は記録されていません", { m: formatMonthLabel(monthKey) })
         }</p>`;
         return;
     }
@@ -658,7 +655,7 @@ function renderExpenseTimeline() {
 
     let lastDateKey = null;
     sorted.forEach(exp => {
-        const cat = getCategoryById(exp.categoryId) || { name: "不明" };
+        const cat = getCategoryById(exp.categoryId) || { name: t("不明") };
 
         const dayKey = exp.dateKey || localDateKey(exp.datetime);
         if (dayKey !== lastDateKey) {
@@ -677,10 +674,10 @@ function renderExpenseTimeline() {
                <div class="card-items" hidden>
                    ${items.map(it => `
                        <div class="card-item-row">
-                           <span class="card-item-name">${escapeHtml(it.name || "（名称なし）")}${
+                           <span class="card-item-name">${escapeHtml(it.name || t("（名称なし）"))}${
                                Number(it.qty) > 1 ? ` ×${Number(it.qty)}` : ""
                            }</span>
-                           <span class="card-item-price">${(Number(it.price) || 0).toLocaleString()} 円</span>
+                           <span class="card-item-price">${fmtYen(Number(it.price) || 0)}</span>
                        </div>
                    `).join("")}
                </div>`
@@ -691,19 +688,21 @@ function renderExpenseTimeline() {
         card.dataset.expId = exp.id;
         card.innerHTML = `
             <div class="card-info">
-                <span class="category-badge">${escapeHtml(cat.name)}</span>
-                ${exp.store ? `<span class="card-store"><span class="material-icons-round">storefront</span>${escapeHtml(exp.store)}</span>` : ""}
-                <div class="card-body">
-                    ${exp.memo ? `<h4>${escapeHtml(exp.memo)}</h4>` : ""}
+                <div class="card-head">
+                    <span class="category-badge">${escapeHtml(cat.name)}</span>
+                    ${exp.memo ? `<span class="card-memo">${escapeHtml(exp.memo)}</span>` : ""}
                 </div>
-                <span class="badge-time">${formatTimeLabel(exp.datetime)}</span>
+                ${exp.store ? `<span class="card-store"><span class="material-icons-round">storefront</span>${escapeHtml(exp.store)}</span>` : ""}
                 ${itemsHtml}
             </div>
             <div class="card-right">
-                <span class="main-amount">${(Number(exp.amount) || 0).toLocaleString()} 円</span>
-                <div class="card-actions">
-                    <span class="material-icons-round" data-action="edit" title="編集">edit</span>
-                    <span class="material-icons-round delete-icon" data-action="delete" title="削除">delete</span>
+                <span class="main-amount">${fmtYen(Number(exp.amount) || 0)}</span>
+                <div class="card-meta">
+                    <span class="badge-time">${formatTimeLabel(exp.datetime)}</span>
+                    <div class="card-actions">
+                        <span class="material-icons-round" data-action="edit" title="${t('編集')}">edit</span>
+                        <span class="material-icons-round delete-icon" data-action="delete" title="${t('削除')}">delete</span>
+                    </div>
                 </div>
             </div>
         `;
@@ -730,8 +729,8 @@ function renderBreakdown() {
 
     if (monthExpenses.length === 0) {
         list.innerHTML = `<p class="breakdown-empty">${
-            isViewingCurrentMonth() ? "今月の支出はまだありません"
-                                    : `${formatMonthLabel(monthKey)}の支出はありません`
+            isViewingCurrentMonth() ? t("今月の支出はまだありません")
+                                    : t("{m}の支出はありません", { m: formatMonthLabel(monthKey) })
         }</p>`;
         return;
     }
@@ -743,7 +742,7 @@ function renderBreakdown() {
     });
 
     const entries = Object.keys(totals)
-        .map(cid => ({ cat: getCategoryById(cid) || { name: "不明" }, amt: totals[cid] }))
+        .map(cid => ({ cat: getCategoryById(cid) || { name: t("不明") }, amt: totals[cid] }))
         .sort((a, b) => b.amt - a.amt);
 
     const max = Math.max(1, ...entries.map(entry => entry.amt));
@@ -754,7 +753,7 @@ function renderBreakdown() {
         row.innerHTML = `
             <span class="breakdown-label">${escapeHtml(cat.name)}</span>
             <span class="breakdown-track"><span class="breakdown-fill" style="width:${pct}%"></span></span>
-            <span class="breakdown-value">${amt.toLocaleString()} 円</span>
+            <span class="breakdown-value">${fmtYen(amt)}</span>
         `;
         list.appendChild(row);
     });
@@ -824,7 +823,7 @@ function ensureBudgetIsSet() {
     void budgetBox?.offsetWidth;
     budgetBox?.classList.add("budget-required-shake");
 
-    showToast(getPetLine("idle", "先に今月の予算を設定してね！")); 
+    showToast(getPetLine("idle", t("先に今月の予算を設定してね！"))); 
     vibrate(20);
     return false;
 }
@@ -846,7 +845,7 @@ function closeModalByBackdrop(overlay) {
     if (!overlay) return;
     if (MODAL_NO_BACKDROP_CLOSE.indexOf(overlay.id) !== -1) return;
     if (overlay.id === "modal-expense" && isExpenseFormDirty()
-        && !confirm("入力中の内容は保存されません。閉じますか？")) return;
+        && !confirm(t("入力中の内容は保存されません。閉じますか？"))) return;
     overlay.classList.remove("open");
 }
 
@@ -910,14 +909,13 @@ function setupEventListeners() {
             const value = parseFloat(budgetInput.value);
 
             if (isNaN(value) || value <= 0) {
-                showToast(getPetLine("idle", "1円以上の予算を設定してね！"));
+                showToast(getPetLine("idle", t("1円以上の予算を設定してね！")));
                 return;
             }
 
             const existing = appData.budget[monthKey] || 0;
             if (existing > 0 && existing !== value) {
-                if (!confirm(`${formatMonthLabel(monthKey)}の予算を `
-                    + `${existing.toLocaleString()}円 から ${value.toLocaleString()}円 に変更しますか？`)) {
+                if (!confirm(t("{m}の予算を {a}円 から {b}円 に変更しますか？", { m: formatMonthLabel(monthKey), a: existing.toLocaleString(), b: value.toLocaleString() }))) {
                     return;
                 }
             }
@@ -932,7 +930,7 @@ function setupEventListeners() {
             renderPlanCard();
             document.getElementById("budget-box-display").classList.remove("hidden");
             document.getElementById("budget-box-edit").classList.remove("open");
-            showToast(getPetLine("idle", `${formatMonthLabel(monthKey)}の予算を ${value.toLocaleString()}円 にしたよ`));
+            showToast(getPetLine("idle", t("{m}の予算を {v}円 にしたよ", { m: formatMonthLabel(monthKey), v: value.toLocaleString() })));
             if (typeof onboardingNotify === "function") onboardingNotify("budget");
         });
     }
@@ -1029,6 +1027,7 @@ function setupEventListeners() {
                 roomData.points += 100;
                 saveRoomData();
                 renderCurrency();
+                addAffection(1);
             }
 
             saveData();
@@ -1040,10 +1039,10 @@ function setupEventListeners() {
 
             if (editId) {
                 spawnPetReaction("favorite");
-                petSay(getPetLine("idle", "更新した！"));
+                petSay(getPetLine("idle", t("更新した！")));
             } else {
                 petCelebrate();
-                petSay(getPetLine("idle", "記録できた！100ptゲット。えらい"));
+                petSay(getPetLine("idle", t("記録できた！100ptゲット。えらい")));
                 playCoin();
             }
             vibrate(25);
@@ -1255,9 +1254,9 @@ function addItemRow(name = "", price = "", categoryId = null) {
     row.className = "item-row";
     if (categoryId) row.dataset.categoryId = String(categoryId);
     row.innerHTML = `
-        <input type="text" class="item-name" placeholder="品目（例：牛乳）" value="${escapeHtml(name)}" maxlength="40">
+        <input type="text" class="item-name" placeholder="${t('品目（例：牛乳）')}" value="${escapeHtml(name)}" maxlength="40">
         <input type="number" class="item-price" placeholder="0" min="0" step="1" value="${price === "" || price === undefined ? "" : (Number(price) || 0)}">
-        <span class="item-unit">円</span>
+        <span class="item-unit">${t("円")}</span>
         <button type="button" class="item-remove" data-item-remove title="この行を削除">
             <span class="material-icons-round">close</span>
         </button>
@@ -1277,7 +1276,7 @@ function collectItemsFromForm() {
         const price = parseFloat(priceEl ? priceEl.value : "");
         if (!name && (isNaN(price) || price === 0)) return;
         items.push(normalizeItem({
-            name: name || "（名称なし）",
+            name: name || t("（名称なし）"),
             price: isNaN(price) ? 0 : price,
             qty: 1,
             categoryId: row.dataset.categoryId || null
@@ -1298,7 +1297,7 @@ function updateItemsSummary() {
         el.textContent = "";
         return;
     }
-    el.textContent = `品目 ${items.length}点・合計 ${sumItemPrices().toLocaleString()} 円`;
+    el.textContent = t("品目 {k}点・合計 {s}", { k: items.length, s: fmtYen(sumItemPrices()) });
 }
 
 function renderItemsEditor(items) {
@@ -1331,14 +1330,14 @@ function openExpenseModal() {
     const datetimeEl = document.getElementById("expense-datetime");
     const modal = document.getElementById("modal-expense");
 
-    if (titleEl) titleEl.textContent = "支出を記録";
+    if (titleEl) titleEl.textContent = t("支出を記録");
     if (editIdEl) editIdEl.value = "";
     if (amountEl) amountEl.value = "";
     if (memoEl) memoEl.value = "";
     if (storeEl) storeEl.value = "";
     if (datetimeEl) datetimeEl.value = toDatetimeLocalValue(new Date());
     limitExpenseDatetime();
-    pendingReceipt = null;
+    resetReceiptUi();
     renderCategorySelect();
 
     validateExpenseInput();
@@ -1358,7 +1357,7 @@ function editExpense(id) {
     const datetimeEl = document.getElementById("expense-datetime");
     const modal = document.getElementById("modal-expense");
 
-    if (titleEl) titleEl.textContent = "支出を編集";
+    if (titleEl) titleEl.textContent = t("支出を編集");
     if (editIdEl) editIdEl.value = exp.id;
     if (amountEl) amountEl.value = exp.amount;
     renderCategorySelect();
@@ -1367,7 +1366,7 @@ function editExpense(id) {
     if (storeEl) storeEl.value = exp.store || "";
     if (datetimeEl) datetimeEl.value = toDatetimeLocalValue(exp.datetime);
     limitExpenseDatetime();
-    pendingReceipt = null;
+    resetReceiptUi();
 
     validateExpenseInput();
     if (modal) modal.classList.add("open");
@@ -1387,7 +1386,7 @@ function showUndoBar(message, onUndo) {
         bar = document.createElement("div");
         bar.id = "undo-bar";
         bar.className = "undo-bar";
-        bar.innerHTML = '<span class="undo-bar-text"></span><button type="button" class="undo-bar-btn">元に戻す</button>';
+        bar.innerHTML = '<span class="undo-bar-text"></span><button type="button" class="undo-bar-btn">' + t("元に戻す") + '</button>';
         document.body.appendChild(bar);
     }
     bar.querySelector(".undo-bar-text").textContent = message;
@@ -1437,7 +1436,7 @@ function deleteExpense(id) {
         }
     }, 6500);
 
-    showUndoBar("支出を削除しました", () => {
+    showUndoBar(t("支出を削除しました"), () => {
         clearTimeout(cleanup);
         exp.deletedAt = null;
         exp.updatedAt = new Date().toISOString();
@@ -1862,9 +1861,19 @@ function resetCurrentMonthData() {
     renderStorageInfo();
 }
 
-function resetAllData() {
-    if (!confirm("すべてのデータ（予算・カテゴリ・支出履歴・マイルーム）を削除して初期状態に戻します。この操作は元に戻せません。よろしいですか？")) return;
-    if (!confirm("本当によろしいですか？もう一度確認します。\n（OCR の API キー、アカウント設定、ログイン状態は残ります）")) return;
+async function resetAllData() {
+    const ok = await showCenterConfirm({
+        id: "reset-confirm",
+        title: t("すべてリセットしますか？"),
+        rows: [
+            { icon: "delete_forever", text: t("予算・記録・マイルームのデータがすべて消えます") },
+            { icon: "block", text: t("元に戻せません") }
+        ],
+        okLabel: t("リセットする"),
+        cancelLabel: t("キャンセル"),
+        danger: true
+    });
+    if (!ok) return;
 
     // localStorage.clear() は使わない。リセット対象のキーだけを消す。
     try {
@@ -1896,9 +1905,16 @@ function resetAllData() {
     refreshAllViews();
     centerRoomPreviewOnPet();
 
-    if (!roomData.pet) openPetSelectModal();
+    // 開いている画面（設定・メニューなど）をすべて閉じ、最初の状態へ戻す
+    document.querySelectorAll(".modal-overlay.open").forEach(m => m.classList.remove("open"));
+    document.getElementById("room-editor")?.classList.remove("open");
+    appPrefs.roomHidden = false;
+    savePrefs();
+    applyRoomHidden(false);
+    try { localStorage.removeItem(ONBOARDING_KEY); } catch (e) { /* 消せなくても使い方は表示する */ }
 
-    alert("初期化が完了しました！（予算は未設定です。自分で決めてください／ポイント: 8,888）");
+    openPetSelectModal();
+    startOnboarding(true);
 }
 
 function renderStorageInfo() {
@@ -1942,11 +1958,11 @@ function renderCharts() {
     const stats = getMonthStats(monthExpenses, monthKey);
 
     const titleEl = document.getElementById("charts-title-text");
-    if (titleEl) titleEl.textContent = `${formatMonthLabel(monthKey)}のグラフ`;
+    if (titleEl) titleEl.textContent = t("{m}のグラフ", { m: formatMonthLabel(monthKey) });
 
     const noteEl = document.getElementById("daily-chart-note");
     if (noteEl) {
-        noteEl.textContent = stats.total > 0 ? `合計 ${stats.total.toLocaleString()}円` : "";
+        noteEl.textContent = stats.total > 0 ? t("合計 {n}", { n: fmtYenCompact(stats.total) }) : "";
     }
 
     const chartEl = document.getElementById("daily-chart");
@@ -1988,8 +2004,8 @@ function openPlannerModal() {
 
     if (hintEl) {
         hintEl.textContent = estimated
-            ? `空欄なら、直近3か月の記録から ${estimated.toLocaleString()} 円 を使います。`
-            : "※月ごとに大体の支出で良いです。";
+            ? t("空欄なら、直近3か月の記録から {n} を使います。", { n: fmtYen(estimated) })
+            : t("※月ごとに大体の支出で良いです。");
     }
 
     const modal = document.getElementById("modal-planner");
@@ -2051,15 +2067,15 @@ function renderPlannerResult(plan, suggestions, advice) {
 
     const suggestionsHtml = suggestions.length > 0
         ? `<div class="planner-block">
-               <p class="planner-sub-title">節約できるところ</p>
+               <p class="planner-sub-title">${t("節約できるところ")}</p>
                ${suggestions.map(s => `
                    <div class="planner-suggestion">
                        <div class="planner-suggestion-head">
                            <span class="planner-suggestion-name">${escapeHtml(s.name)}</span>
-                           <span class="planner-suggestion-save">-${s.cutAmount.toLocaleString()} 円/月</span>
+                           <span class="planner-suggestion-save">-${fmtYenPerMonth(s.cutAmount)}</span>
                        </div>
                        <span class="planner-suggestion-desc">
-                           いまの支出の${Math.round(s.share * 100)}%。1割減らすと ${s.savedDays} 日 早まります。
+                           ${t("いまの支出の{p}%。1割減らすと {d} 日 早まります。", { p: Math.round(s.share * 100), d: s.savedDays })}
                        </span>
                    </div>
                `).join("")}
@@ -2068,30 +2084,30 @@ function renderPlannerResult(plan, suggestions, advice) {
 
     el.innerHTML = `
         <div class="planner-result-card">
-            <p class="planner-result-kicker">シミュレーション結果</p>
-            <p class="planner-result-goal">目標金額 ${plan.targetAmount.toLocaleString()} 円を貯めるには…</p>
+            <p class="planner-result-kicker">${t("シミュレーション結果")}</p>
+            <p class="planner-result-goal">${t("目標金額 {n} を貯めるには…", { n: fmtYen(plan.targetAmount) })}</p>
             <div class="planner-period">
-                <span class="planner-period-value">約 ${escapeHtml(plan.periodLabel)}</span>
-                <span class="planner-period-unit">で達成できます！</span>
+                <span class="planner-period-value">${escapeHtml(t("約 {p}", { p: plan.periodLabel }))}</span>
+                <span class="planner-period-unit">${t("で達成できます！")}</span>
             </div>
             <div class="planner-figures">
                 <div class="planner-figure">
-                    <span class="planner-figure-label">毎月の貯金額</span>
-                    <span class="planner-figure-value">${plan.monthlySaving.toLocaleString()} 円</span>
+                    <span class="planner-figure-label">${t("毎月の貯金額")}</span>
+                    <span class="planner-figure-value">${fmtYen(plan.monthlySaving)}</span>
                 </div>
                 <div class="planner-figure">
-                    <span class="planner-figure-label">自由に使えるお金</span>
-                    <span class="planner-figure-value">${plan.spendablePerMonth.toLocaleString()} 円</span>
+                    <span class="planner-figure-label">${t("自由に使えるお金")}</span>
+                    <span class="planner-figure-value">${fmtYen(plan.spendablePerMonth)}</span>
                 </div>
                 <div class="planner-figure">
-                    <span class="planner-figure-label">達成予定日</span>
+                    <span class="planner-figure-label">${t("達成予定日")}</span>
                     <span class="planner-figure-value">${escapeHtml(plan.targetDateLabel)}</span>
                 </div>
             </div>
         </div>
         ${suggestionsHtml}
         <div class="planner-block">
-            <p class="planner-sub-title"><span class="material-icons-round">lightbulb</span>アドバイス</p>
+            <p class="planner-sub-title"><span class="material-icons-round">lightbulb</span>${t("アドバイス")}</p>
             <ul class="planner-advice">${advice.map(a => `<li>${escapeHtml(a)}</li>`).join("")}</ul>
         </div>
     `;
@@ -2113,20 +2129,20 @@ function renderPlanCard() {
     el.innerHTML = `
         <div class="plan-card-head">
             <span class="plan-card-title">
-                <span class="material-icons-round">auto_awesome</span>貯金プラン
+                <span class="material-icons-round">auto_awesome</span>${t("貯金プラン")}
             </span>
-            <button class="plan-card-clear" id="btn-clear-plan" type="button">解除</button>
+            <button class="plan-card-clear" id="btn-clear-plan" type="button">${t("解除")}</button>
         </div>
         <div class="plan-card-goal">
-            ${plan.targetAmount.toLocaleString()} 円 ／ ${escapeHtml(plan.difficultyLabel)}
+            ${fmtYen(plan.targetAmount)} ／ ${escapeHtml(plan.difficultyLabel)}
         </div>
         <div class="plan-progress-track">
             <div class="plan-progress-fill" style="width:${progress.percent}%"></div>
         </div>
         <p class="plan-card-progress">
             ${progress.achieved
-                ? "目標達成！おめでとう！"
-                : `あと ${progress.remaining.toLocaleString()} 円（${progress.percent}%）・予定日 ${escapeHtml(plan.targetDateLabel)}`}
+                ? t("目標達成！おめでとう！")
+                : t("あと {n}（{p}%）・予定日 {d}", { n: fmtYen(progress.remaining), p: progress.percent, d: escapeHtml(plan.targetDateLabel) })}
         </p>
     `;
 }
@@ -2179,34 +2195,39 @@ async function handleReceiptFile(file) {
 
     if (!file) return;
 
-    if (!isOcrConfigured()) {
-        setStatus("先に「データ管理」でAPIキーを設定してください。手入力はそのまま使えます。");
-        return;
-    }
+    const label = document.getElementById("receipt-scan-label");
+    statusEl?.classList.remove("is-error");
+    label?.classList.add("is-busy");
 
     try {
-        setStatus("画像を準備しています…");
+        setStatus(t("画像を準備しています…"));
         const img = await loadImageFromFile(file);
         const resized = resizeImageToDataUrl(img, RECEIPT_MAX_EDGE, RECEIPT_JPEG_QUALITY);
 
-        setStatus("レシートを読み取っています…");
+        setStatus(t("レシートを読み取っています…"));
         const result = await recognizeReceipt(resized.dataUrl, getOcrSettings());
 
         if (!result.ok) {
-            setStatus(`${result.error}（手入力はそのまま使えます）`);
+            statusEl?.classList.add("is-error");
+            setStatus(`${result.error}${t("（手入力はそのまま使えます）")}`);
             return;
         }
 
-        applyReceiptToForm(result.receipt, resized.dataUrl);
-        setStatus("読み取り結果を反映しました。内容を確認してください。");
+        applyReceiptToForm(result.receipt);
+        setStatus(t("読み取り結果を反映しました。内容を確認してください。"));
         playCoin();
         vibrate(20);
     } catch (e) {
-        setStatus(`${(e && e.message) || "読み取りに失敗しました。"}（手入力はそのまま使えます）`);
+        statusEl?.classList.add("is-error");
+        setStatus(`${(e && e.message) || t("読み取りに失敗しました。")}${t("（手入力はそのまま使えます）")}`);
+    } finally {
+        label?.classList.remove("is-busy");
+        const input = document.getElementById("input-receipt-image");
+        if (input) input.value = "";
     }
 }
 
-function applyReceiptToForm(receipt, dataUrl) {
+function applyReceiptToForm(receipt) {
     const r = normalizeReceipt(receipt);
 
     if (r.total > 0) {
@@ -2214,29 +2235,28 @@ function applyReceiptToForm(receipt, dataUrl) {
         if (amountEl) amountEl.value = r.total;
     }
 
-    const storeEl = document.getElementById("expense-store");
-    if (storeEl && r.store) storeEl.value = r.store;
+    // 店名はメモに入れる（すでにメモがあれば上書きしない）
+    const memoEl = document.getElementById("expense-memo");
+    if (memoEl && r.store && !memoEl.value.trim()) memoEl.value = r.store;
 
     if (r.date) {
         const now = new Date();
         const pad = (n) => String(n).padStart(2, "0");
         const parsed = parseDatetimeLocalValue(`${r.date}T${pad(now.getHours())}:${pad(now.getMinutes())}`);
-        if (parsed) {
+        if (parsed && parsed.getTime() <= Date.now()) {
             const dtEl = document.getElementById("expense-datetime");
             if (dtEl) dtEl.value = toDatetimeLocalValue(parsed);
         }
     }
 
+    // カテゴリは、いちばん金額の大きい品目に合わせる
     const items = assignCategoriesToItems(r.items, appData.categories, null);
-    renderItemsEditor(items);
-
+    const top = items.filter(it => it.categoryId).sort((a, b) => (Number(b.price) || 0) - (Number(a.price) || 0))[0];
     const categoryEl = document.getElementById("expense-category");
-    if (categoryEl && items.length > 0 && items[0].categoryId) {
-        categoryEl.value = items[0].categoryId;
-    }
+    if (categoryEl && top && top.categoryId) categoryEl.value = top.categoryId;
 
-    pendingReceipt = { dataUrl: dataUrl, receipt: r };
-    renderReceiptPreview(dataUrl, r);
+    // 画像は保存しない（読み取りにだけ使う）。記録の出どころだけ残す。
+    pendingReceipt = { dataUrl: null, receipt: r };
     validateExpenseInput();
 }
 
@@ -2389,23 +2409,26 @@ const PET_AWAKE_IMG = {
     usagi: "assets/usagi_awake.png",
     shiba: "assets/shiba_awake.png",
     hamster: "assets/hamster_awake.png",
-    panda: "assets/panda_awake.png"
+    panda: "assets/panda_awake.png",
+    special: "assets/special_awake.png"
 };
 const PET_SLEEP_IMG = {
     neko: "assets/neko_sleep.gif",
     usagi: "assets/usagi_sleep.gif",
     shiba: "assets/shiba_sleep.png",
     hamster: "assets/hamster_sleep.png",
-    panda: "assets/panda_sleep.png"
+    panda: "assets/panda_sleep.png",
+    special: "assets/special_sleep.png"
 };
 
 // ペットの種類（ガチャで増える）。gobi は話すときの語尾。
 const PET_CATALOG = {
-    neko:    { label: "ねこ",       gobi: "にゃ～", defaultName: "ねこ" },
-    usagi:   { label: "うさぎ",     gobi: "ぴょん", defaultName: "ぴょん" },
+    neko:    { label: t("ねこ"),       gobi: "にゃ～", defaultName: t("ねこ") },
+    usagi:   { label: t("うさぎ"),     gobi: "ぴょん", defaultName: "ぴょん" },
     shiba:   { label: "しばいぬ",   gobi: "わん",   defaultName: "まる" },
     hamster: { label: "ハムスター", gobi: "ちゅー", defaultName: "むぎ" },
-    panda:   { label: "パンダ",     gobi: "もふ",   defaultName: "たけ" }
+    panda:   { label: "パンダ",     gobi: "もふ",   defaultName: "たけ" },
+    special: { label: t("スペシャル"), gobi: "♡",      defaultName: t("スペシャル") }   // 好感度100で仲間になる（ガチャには出ない）
 };
 
 // 部屋（マップ）。default は最初から持っている部屋。
@@ -2456,7 +2479,8 @@ function roomExtraCsvPairs() {
         ["ownedMaps", (roomData.ownedMaps || []).join("|")],
         ["mapId", roomData.mapId || "default"],
         ["petNames", names],
-        ["gachaPulls", (roomData.gacha && roomData.gacha.pulls) || 0]
+        ["gachaPulls", (roomData.gacha && roomData.gacha.pulls) || 0],
+        ["affection", roomData.affection || 0]
     ];
 }
 
@@ -2470,9 +2494,43 @@ function applyRoomExtrasFromCsvMap(room, map) {
         if (i > 0) room.petNames[pair.slice(0, i)] = pair.slice(i + 1);
     });
     room.gacha = { pulls: parseInt(map.gachaPulls, 10) || 0 };
+    room.affection = Math.min(AFFECTION_MAX, Math.max(0, parseInt(map.affection, 10) || 0));
 }
 
+const AFFECTION_MAX = 100;
 const PET_FLOOR_Y = 82;
+
+// 好感度：支出を1件記録するごとに +1。100 に届くとスペシャルペットが仲間になる。
+function renderAffection() {
+    const v = Math.min(AFFECTION_MAX, Math.max(0, (roomData && roomData.affection) || 0));
+    const valEl = document.getElementById("affection-value");
+    const fill = document.getElementById("affection-bar-fill");
+    if (valEl) valEl.textContent = v;
+    if (fill) fill.style.width = `${(v / AFFECTION_MAX) * 100}%`;
+    document.getElementById("affection-badge")?.classList.toggle("is-full", v >= AFFECTION_MAX);
+}
+
+function addAffection(points) {
+    if (!roomData) return;
+    const before = roomData.affection || 0;
+    if (before >= AFFECTION_MAX) return;
+    roomData.affection = Math.min(AFFECTION_MAX, before + (points || 1));
+    let unlocked = false;
+    if (roomData.affection >= AFFECTION_MAX && !roomData.ownedPets.includes("special")) {
+        roomData.ownedPets.push("special");
+        unlocked = true;
+    }
+    saveRoomData();
+    renderAffection();
+    if (unlocked) {
+        setTimeout(() => {
+            showCenterGuide("special-unlock", t("スペシャルペットが仲間に！"), [
+                { icon: "favorite", text: t("好感度が100になりました") },
+                { icon: "pets", text: t("ガチャ → コレクションから、いつでも切りかえられます") }
+            ], null, "OK");
+        }, 700);
+    }
+}
 const TOY_ITEM_IDS = ["nezumi_karakuri", "toy_car_red", "wool_red", "toy_car", "toy_ball", "neko_toy"];
 
 const PET_CHAT = {
@@ -2497,6 +2555,7 @@ const DEFAULT_ROOM_DATA = {
     ownedMaps: ["default"],
     mapId: "default",
     gacha: { pulls: 0 },
+    affection: 0,
     mini: null
 };
 
@@ -2536,6 +2595,7 @@ function normalizeRoomData(raw) {
     if (!d.ownedMaps.includes("default")) d.ownedMaps.unshift("default");
     if (!MAP_CATALOG[d.mapId] || !d.ownedMaps.includes(d.mapId)) d.mapId = "default";
     d.gacha = { pulls: Math.max(0, Math.floor(Number(d.gacha && d.gacha.pulls) || 0)) };
+    d.affection = Math.min(AFFECTION_MAX, Math.max(0, Math.floor(Number(d.affection) || 0)));
 
     d.placedItems = d.placedItems
         .filter(it => it && typeof it === "object")
@@ -3362,8 +3422,8 @@ function choosePet(type) {
     const input = document.getElementById("pet-name-input");
     const isRabbit = type === "usagi";
     if (preview) preview.src = isRabbit ? PET_AWAKE_IMG.usagi : PET_AWAKE_IMG.neko;
-    if (title) title.textContent = `${isRabbit ? "うさぎ" : "ねこ"}に名前をつけよう`;
-    if (input) { input.value = ""; input.placeholder = isRabbit ? "例：ぴょん" : "例：もち"; }
+    if (title) title.textContent = `${isRabbit ? "うさぎ" : t("ねこ")}に名前をつけよう`;
+    if (input) { input.value = ""; input.placeholder = isRabbit ? "例：ぴょん" : t("例：もち"); }
     document.getElementById("modal-pet-select")?.classList.remove("open");
     document.getElementById("modal-pet-name")?.classList.add("open");
     setTimeout(() => input?.focus(), 80);
@@ -3411,6 +3471,10 @@ function renderCurrency() {
     if (shopEl) shopEl.textContent = points.toLocaleString();
     const gachaEl = document.getElementById("gacha-currency-amount");
     if (gachaEl) gachaEl.textContent = points.toLocaleString();
+    // ルーム編集画面の途中でショップやガチャを使ったら、持ち物にすぐ反映する
+    if (document.getElementById("room-editor")?.classList.contains("open") && typeof renderInventoryTray === "function") {
+        renderInventoryTray();
+    }
 }
 
 // ==========================================
@@ -3439,6 +3503,7 @@ function renderRoomScene(container, interactive, opts) {
 function renderRoomPreview() {
     applyRoomMap();
     renderRoomScene(document.getElementById("room-scene-preview"), false);
+    renderAffection();
 }
 
 function centerRoomPreviewOnPet() {
@@ -3570,6 +3635,25 @@ function openRoomEditor() {
     if (editor) editor.classList.add("open");
     renderRoomEditorCanvas();
     renderInventoryTray();
+    centerRoomEditorOnPet();
+    // 向きを変えたときも、ペットが見える位置に保つ
+    if (!openRoomEditor._bound) {
+        openRoomEditor._bound = true;
+        window.addEventListener("resize", () => {
+            if (document.getElementById("room-editor")?.classList.contains("open")) centerRoomEditorOnPet();
+        });
+    }
+}
+
+function centerRoomEditorOnPet() {
+    const canvas = document.getElementById("room-editor-canvas");
+    const wrapper = canvas ? canvas.parentElement : null;
+    if (!wrapper) return;
+    requestAnimationFrame(() => {
+        const x = (roomData && roomData.pet && typeof roomData.pet.x === "number") ? roomData.pet.x : 50;
+        const target = (x / 100) * canvas.offsetWidth - wrapper.clientWidth / 2;
+        wrapper.scrollLeft = Math.max(0, Math.min(canvas.offsetWidth - wrapper.clientWidth, target));
+    });
 }
 
 function closeRoomEditor() {
@@ -3778,7 +3862,7 @@ function changeItemLayer(uid, delta) {
     }
     if (to < 0) {
         if (typeof showToast === "function") {
-            showToast(delta > 0 ? "これ以上前に出せません" : "これ以上後ろに下げられません");
+            showToast(delta > 0 ? "これ以上前に出せません" : t("これ以上後ろに下げられません"));
         }
         return;
     }
@@ -3900,17 +3984,18 @@ function setupRoomEventListeners() {
         if (roomEditorSelectedUid && roomEditorSelectedUid !== "pet") returnItemToInventory(roomEditorSelectedUid);
     });
 
-    document.getElementById("btn-open-room-editor")?.addEventListener("click", openRoomEditor);
-    document.getElementById("btn-close-room-editor")?.addEventListener("click", closeRoomEditor);
+        document.getElementById("btn-close-room-editor")?.addEventListener("click", closeRoomEditor);
 
+    // 部屋のどこかをタップ → 編集画面（ペット本体のタップは stopPropagation 済みで、これまで通り会話）
     document.getElementById("pet-room-preview")?.addEventListener("click", () => {
         if (roomDragMoved) return;
-        if (isRoomCompact()) return;
-        if (!roomData.pet) return;
-        if (petWakeUp()) return;
-        triggerPetHop();
-        if (Math.random() < 0.6) spawnPetReaction("favorite");
+        openRoomEditor();
     });
+
+    // ガチャ／ショップは編集画面の右上アイコンからも開ける
+    document.getElementById("input-receipt-image")?.addEventListener("change", (e) => handleReceiptFile(e.target.files && e.target.files[0]));
+    document.getElementById("btn-editor-gacha")?.addEventListener("click", () => openGachaModal());
+    document.getElementById("btn-editor-shop")?.addEventListener("click", () => openShop());
 
     window.addEventListener("resize", resetRoomCompactBase);
 }
@@ -4275,7 +4360,7 @@ function getCategoryComparison(expenses, categories, monthKey) {
         const prev = previous[cid] || 0;
         return {
             categoryId: cid,
-            name: cat ? cat.name : "不明",
+            name: cat ? cat.name : t("不明"),
             current: cur,
             previous: prev,
             diff: cur - prev,
@@ -4320,7 +4405,7 @@ function buildDailyBarSvg(daily, options) {
         const y = padTop + plotH - h;
         const isMax = v > 0 && v === max;
         const fill = isMax ? "var(--danger)" : "var(--accent)";
-        const title = `${d.day}日: ${v.toLocaleString()}円`;
+        const title = `${d.day}: ${fmtYenCompact(v)}`;
         return `<rect x="${x.toFixed(2)}" y="${y.toFixed(2)}" width="${barW.toFixed(2)}" height="${h.toFixed(2)}" fill="${fill}" rx="1"><title>${svgEscape(title)}</title></rect>`;
     }).join("");
 
@@ -4348,7 +4433,7 @@ function buildComparisonHtml(comparison, options) {
     return rows.map(c => {
         let tag;
         if (c.ratio === null) {
-            tag = `<span class="compare-tag is-new">新規</span>`;
+            tag = `<span class="compare-tag is-new">${t("新規")}</span>`;
         } else {
             const percent = Math.round((c.ratio - 1) * 100);
             if (percent > 0) {
@@ -4362,7 +4447,7 @@ function buildComparisonHtml(comparison, options) {
         return `<div class="compare-row">
             <span class="compare-name">${escapeHtml(c.name)}</span>
             ${tag}
-            <span class="compare-value">${c.current.toLocaleString()} 円</span>
+            <span class="compare-value">${fmtYen(c.current)}</span>
         </div>`;
     }).join("");
 }
@@ -4371,9 +4456,9 @@ function buildComparisonHtml(comparison, options) {
 // ▼ planner.js
 // ================================================================
 const PLANNER_DIFFICULTY = {
-    easy: { key: "easy", label: "かんたん", desc: "ゆるく節約して貯める", coefficient: 0.75 },
-    normal: { key: "normal", label: "ふつう", desc: "バランスよく節約する", coefficient: 1.0 },
-    hard: { key: "hard", label: "むずかしい", desc: "しっかり節約して貯める", coefficient: 1.25 }
+    easy: { key: "easy", label: t("かんたん"), desc: t("ゆるく節約して貯める"), coefficient: 0.75 },
+    normal: { key: "normal", label: t("ふつう"), desc: t("バランスよく節約する"), coefficient: 1.0 },
+    hard: { key: "hard", label: t("むずかしい"), desc: t("しっかり節約して貯める"), coefficient: 1.25 }
 };
 
 const DAYS_PER_MONTH = 30;
@@ -4417,10 +4502,10 @@ function calculatePlan(input) {
     };
 
     if (income <= 0) {
-        return Object.assign(base, { ok: false, reason: "月収（手取り）を入力してください。" });
+        return Object.assign(base, { ok: false, reason: t("月収（手取り）を入力してください。") });
     }
     if (target <= 0) {
-        return Object.assign(base, { ok: false, reason: "ほしいものの金額を入力してください。" });
+        return Object.assign(base, { ok: false, reason: t("ほしいものの金額を入力してください。") });
     }
 
     const surplus = income - expense;
@@ -4429,7 +4514,7 @@ function calculatePlan(input) {
     if (surplus <= 0) {
         return Object.assign(base, surplusInfo, {
             ok: false,
-            reason: "月の支出が収入を上回っています。まず支出を減らす必要があります。"
+            reason: t("月の支出が収入を上回っています。まず支出を減らす必要があります。")
         });
     }
 
@@ -4449,7 +4534,7 @@ function calculatePlan(input) {
     const savingRate = monthlySaving / income;
     let caution = null;
     if (savingRate >= 0.5) {
-        caution = `収入の ${Math.round(savingRate * 100)}% を貯金に回す計算です。かなり厳しいので、期間を長めに考えましょう。`;
+        caution = t("収入の {p}% を貯金に回す計算です。かなり厳しいので、期間を長めに考えましょう。", { p: Math.round(savingRate * 100) });
     }
 
     return Object.assign(base, surplusInfo, {
@@ -4462,8 +4547,8 @@ function calculatePlan(input) {
         wholeMonths,
         restDays,
         periodLabel: wholeMonths > 0
-            ? `${wholeMonths}か月${restDays > 0 ? restDays + "日" : ""}`
-            : `${restDays}日`,
+            ? (restDays > 0 ? t("{a}か月{b}日", { a: wholeMonths, b: restDays }) : t("{a}か月", { a: wholeMonths }))
+            : t("{a}日", { a: restDays }),
         targetDate,
         targetDateLabel: formatPlanDate(targetDate),
         caution
@@ -4473,7 +4558,7 @@ function calculatePlan(input) {
 function formatPlanDate(date) {
     const d = date instanceof Date ? date : new Date(date);
     if (isNaN(d.getTime())) return "";
-    return `${d.getFullYear()}年${d.getMonth() + 1}月${d.getDate()}日`;
+    return t("{y}年{m}月{d}日", { y: d.getFullYear(), m: d.getMonth() + 1, d: d.getDate() });
 }
 
 function getReductionSuggestions(expenses, categories, monthKey, plan, limit) {
@@ -4498,7 +4583,7 @@ function getReductionSuggestions(expenses, categories, monthKey, plan, limit) {
             const newDays = Math.max(1, Math.round((plan.targetAmount / newSaving) * DAYS_PER_MONTH));
             return {
                 categoryId: cid,
-                name: cat ? cat.name : "不明",
+                name: cat ? cat.name : t("不明"),
                 amount,
                 share: amount / totalSpent,
                 cutAmount,
@@ -4517,29 +4602,29 @@ function buildPlannerAdvice(plan, suggestions, context) {
     if (!plan.ok) {
         advice.push(plan.reason);
         if (/支出が収入を上回/.test(plan.reason || "")) {
-            advice.push("まずは「今月の内訳」で一番大きいカテゴリを確認してみましょう。");
+            advice.push(t("まずは「今月の内訳」で一番大きいカテゴリを確認してみましょう。"));
         }
         return advice;
     }
 
-    advice.push(`このペースだと、約 ${plan.periodLabel} で「${formatPlanDate(plan.targetDate)}」に買えます。`);
+    advice.push(t("このペースだと、約 {p} で「{d}」に買えます。", { p: plan.periodLabel, d: formatPlanDate(plan.targetDate) }));
 
     if (plan.wholeMonths <= 1) {
-        advice.push("1か月以内に手が届きます。もう少しだけ踏ん張ってみましょう。");
+        advice.push(t("1か月以内に手が届きます。もう少しだけ踏ん張ってみましょう。"));
     } else if (plan.wholeMonths >= 12) {
-        advice.push("1年以上かかる計算です。目標金額を分けて、小さな目標から達成するのもおすすめです。");
+        advice.push(t("1年以上かかる計算です。目標金額を分けて、小さな目標から達成するのもおすすめです。"));
     }
 
     (suggestions || []).forEach(s => {
         if (s.savedDays <= 0) return;
-        advice.push(`「${s.name}」を1割（約 ${s.cutAmount.toLocaleString()} 円/月）減らすと、${s.savedDays} 日早まります。`);
+        advice.push(t("「{c}」を1割（約 {n}/月）減らすと、{d} 日早まります。", { c: s.name, n: fmtYenCompact(s.cutAmount), d: s.savedDays }));
     });
 
     if (plan.caution) advice.push(plan.caution);
 
     const recorded = context && context.recordedMonths;
     if (recorded === 0) {
-        advice.push("まだ支出の記録が少ないので、支出額は手入力の値を使っています。記録が増えると精度が上がります。");
+        advice.push(t("まだ支出の記録が少ないので、支出額は手入力の値を使っています。記録が増えると精度が上がります。"));
     }
 
     return advice;
@@ -4629,6 +4714,66 @@ const DEFAULT_OCR_SETTINGS = {
     model: "gemini-2.0-flash",
     endpoint: ""
 };
+
+// ---- 無料のレシート読み取り（サーバー経由・1日1回まで） ----
+// worker/receipt-proxy.js を Cloudflare Workers などに置いたら、その URL をここに入れる。
+// 空のままだと「準備中」と表示される（自分の API キーがある人は従来どおり使える）。
+const RECEIPT_PROXY_URL = "";
+const DEVICE_ID_KEY = "yoyu_aru_device_id";
+const FREE_OCR_DAY_KEY = "yoyu_aru_free_ocr_day";
+
+function getDeviceId() {
+    try {
+        let id = localStorage.getItem(DEVICE_ID_KEY);
+        if (!id) {
+            id = (window.crypto && crypto.randomUUID) ? crypto.randomUUID() : `d${Date.now()}${Math.random().toString(36).slice(2)}`;
+            localStorage.setItem(DEVICE_ID_KEY, id);
+        }
+        return id;
+    } catch (e) { return "anonymous"; }
+}
+
+function jstDateKey() {   // サーバーと同じ「日本時間の日付」で1日を数える
+    return new Date(Date.now() + 9 * 3600 * 1000).toISOString().slice(0, 10);
+}
+
+function freeOcrUsedToday() {
+    try { return localStorage.getItem(FREE_OCR_DAY_KEY) === jstDateKey(); } catch (e) { return false; }
+}
+
+async function recognizeReceiptViaProxy(dataUrl) {
+    if (!RECEIPT_PROXY_URL) return { ok: false, httpOk: false, error: t("無料の読み取りは、いま準備中です。手入力をお使いください。") };
+    if (freeOcrUsedToday()) return { ok: false, httpOk: false, error: t("今日の無料読み取りは使い切りました。明日また使えます。") };
+
+    const controller = typeof AbortController === "function" ? new AbortController() : null;
+    const timer = controller ? setTimeout(() => controller.abort(), 30000) : null;
+    let res;
+    try {
+        res = await fetch(RECEIPT_PROXY_URL, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ image: String(dataUrl).split(",")[1] || "", deviceId: getDeviceId() }),
+            signal: controller ? controller.signal : undefined
+        });
+    } catch (e) {
+        return { ok: false, httpOk: false, error: (e && e.name === "AbortError")
+            ? t("読み取りがタイムアウトしました。通信環境を確認して、もう一度試してください。")
+            : t("通信できませんでした。オフラインか、接続が制限されている可能性があります。") };
+    } finally {
+        if (timer) clearTimeout(timer);
+    }
+    if (res.status === 429) {
+        try { localStorage.setItem(FREE_OCR_DAY_KEY, jstDateKey()); } catch (e) { /* 保存できなくてもサーバー側で制限される */ }
+        return { ok: false, httpOk: false, error: t("今日の無料読み取りは使い切りました。明日また使えます。") };
+    }
+    if (!res.ok) return { ok: false, httpOk: false, error: describeHttpError(res.status) };
+    let json;
+    try { json = await res.json(); } catch (e) {
+        return { ok: false, httpOk: true, error: t("応答を解釈できませんでした。") };
+    }
+    try { localStorage.setItem(FREE_OCR_DAY_KEY, jstDateKey()); } catch (e) { /* 同上 */ }
+    return Object.assign({ httpOk: true }, parseReceiptResponse(String(json.text || "")));
+}
 
 function getOcrSettings() {
     let saved = null;
@@ -5038,9 +5183,7 @@ function extractResponseText(provider, json) {
 
 async function recognizeReceipt(dataUrl, settings) {
     const s = settings || getOcrSettings();
-    if (!s.apiKey) {
-        return { ok: false, httpOk: false, error: "APIキーが設定されていません。" };
-    }
+    if (!s.apiKey) return recognizeReceiptViaProxy(dataUrl);
 
     // カスタム先は https のみ許可（http だと API キーが平文で流れるため）
     const endpointError = checkAiEndpoint(s);
@@ -5118,6 +5261,38 @@ function writeOnboardingState(state) {
 }
 
 // 画面中央に出す、最小限の案内カード
+// 「使い方」と同じカード構造の確認ダイアログ。OK なら true を返す。
+function showCenterConfirm({ id, title, rows, okLabel, cancelLabel, danger }) {
+    return new Promise(resolve => {
+        document.getElementById(id)?.remove();
+        const overlay = document.createElement("div");
+        overlay.id = id;
+        overlay.className = "guide-overlay";
+        overlay.setAttribute("role", "alertdialog");
+        overlay.innerHTML =
+            `<div class="guide-card"><h4 class="guide-title"></h4><ul class="guide-list"></ul>` +
+            `<div class="guide-actions"><button type="button" class="primary-button guide-ok"></button>` +
+            `<button type="button" class="guide-cancel"></button></div></div>`;
+        overlay.querySelector(".guide-title").textContent = title;
+        const ul = overlay.querySelector(".guide-list");
+        rows.forEach(r => {
+            const li = document.createElement("li");
+            li.innerHTML = `<span class="material-icons-round"></span><span class="guide-text"></span>`;
+            li.children[0].textContent = r.icon;
+            li.children[1].textContent = r.text;
+            ul.appendChild(li);
+        });
+        const ok = overlay.querySelector(".guide-ok");
+        ok.textContent = okLabel;
+        if (danger) ok.classList.add("is-danger");
+        overlay.querySelector(".guide-cancel").textContent = cancelLabel || t("キャンセル");
+        const done = (v) => { overlay.remove(); resolve(v); };
+        ok.addEventListener("click", () => done(true));
+        overlay.querySelector(".guide-cancel").addEventListener("click", () => done(false));
+        (document.querySelector(".app-container") || document.body).appendChild(overlay);
+    });
+}
+
 function showCenterGuide(id, title, rows, onClose, okLabel, parent) {
     document.getElementById(id)?.remove();
     const overlay = document.createElement("div");
@@ -5128,7 +5303,7 @@ function showCenterGuide(id, title, rows, onClose, okLabel, parent) {
         `<div class="guide-card"><h4 class="guide-title"></h4><ul class="guide-list"></ul>` +
         `<button type="button" class="primary-button guide-ok">はじめる</button></div>`;
     overlay.querySelector(".guide-title").textContent = title;
-    overlay.querySelector(".guide-ok").textContent = okLabel || "はじめる";
+    overlay.querySelector(".guide-ok").textContent = okLabel || t("はじめる");
     const ul = overlay.querySelector(".guide-list");
     rows.forEach(r => {
         const li = document.createElement("li");
@@ -5154,82 +5329,89 @@ function startOnboarding(force) {
     if (!force) {
         if (readOnboardingState()) return;
     }
-    showCenterGuide("usage-guide", "使い方", [
-        { icon: "edit", text: "予算を入れる" },
-        { icon: "add_circle", text: "支出を記録する" },
-        { icon: "pets", text: "記録でポイント → ペットの部屋へ" },
-        { icon: "storage", text: "メニューからCSVで保存" }
+    showCenterGuide("usage-guide", t("使い方"), [
+        { icon: "edit", text: t("予算を入れる") },
+        { icon: "add_circle", text: t("支出を記録する") },
+        { icon: "toll", text: t("記録でポイント → ガチャ・ショップへ") },
+        { icon: "pets", text: t("肉球ボタンでマイルームを隠す／表示") },
+        { icon: "favorite", text: t("1つの記録＝1ポイント。100まで貯めるといいことが起きるよ！") },
+        { icon: "storage", text: t("メニューからCSVで保存") }
     ], finishOnboarding);
 }
 
 // 旧ステップ式ガイドの名残。今は何もしない。
 function onboardingNotify() {}
 
-// マイペットページ：初めて開いたときだけ
-function maybeShowPetGuide() {
-    let seen = false;
-    try { seen = localStorage.getItem(PET_GUIDE_KEY) === "1"; } catch (e) {}
-    if (seen) return;
-    try { localStorage.setItem(PET_GUIDE_KEY, "1"); } catch (e) {}
-    showCenterGuide("pet-guide", "マイペット", [
-        { icon: "touch_app", text: "ペットをタップして遊ぶ" },
-        { icon: "casino", text: "ポイントでガチャ・ショップ" },
-        { icon: "edit", text: "「編集」で模様替え" }
-    ], null, "OK", document.getElementById("room-page"));
-}
-
 // ==========================================
-// マイルーム専用ページ／横画面ロック
+// マイペット（メイン画面）
 // ==========================================
-// スマホを縦に持っているあいだは「横向きにしてください」を出し、マイペットは使わせない
-function updateRoomOrientation() {
-    const page = document.getElementById("room-page");
-    if (!page || !page.classList.contains("open")) return;
-    const needLandscape = window.innerHeight > window.innerWidth && window.innerWidth <= 820;
-    page.classList.toggle("need-landscape", needLandscape);
-    document.getElementById("rotate-notice")?.setAttribute("aria-hidden", needLandscape ? "false" : "true");
-    if (!needLandscape) {
-        centerRoomPreviewOnPet();
-        maybeShowPetGuide();
+function applyRoomHidden(animated) {
+    const sec = document.getElementById("room-section");
+    const btn = document.getElementById("btn-toggle-room");
+    const hidden = !!appPrefs.roomHidden;
+    if (sec) {
+        if (!animated) sec.classList.add("no-anim");
+        sec.classList.toggle("is-hidden", hidden);
+        sec.setAttribute("aria-hidden", hidden ? "true" : "false");
+        if (!animated) requestAnimationFrame(() => requestAnimationFrame(() => sec.classList.remove("no-anim")));
     }
+    if (btn) {
+        btn.classList.toggle("is-off", hidden);
+        btn.setAttribute("aria-pressed", hidden ? "true" : "false");
+    }
+    if (!hidden) setTimeout(centerRoomPreviewOnPet, animated ? 450 : 0);
 }
 
-function openRoomPage() {
-    const page = document.getElementById("room-page");
-    if (!page) return;
-    page.classList.add("open");
-    page.setAttribute("aria-hidden", "false");
-    // 対応する端末（ホーム画面から開いたアプリ等）では本当に横向きにロックする
-    try { screen.orientation?.lock?.("landscape").catch(() => {}); } catch (e) {}
-    renderRoomPreview();
-    updateRoomOrientation();
-    requestAnimationFrame(centerRoomPreviewOnPet);
-}
-function closeRoomPage() {
-    const page = document.getElementById("room-page");
-    if (!page) return;
-    page.classList.remove("open", "need-landscape");
-    page.setAttribute("aria-hidden", "true");
-    try { screen.orientation?.unlock?.(); } catch (e) {}
+function setupRoomToggle() {
+    applyRoomHidden(false);
+    const btn = document.getElementById("btn-toggle-room");
+    btn?.addEventListener("click", () => {
+        appPrefs.roomHidden = !appPrefs.roomHidden;
+        savePrefs();
+        btn.classList.remove("pop");
+        void btn.offsetWidth;
+        btn.classList.add("pop");
+        applyRoomHidden(true);
+        vibrate(10);
+    });
 }
 
+// ==========================================
+// 言語（… メニュー）
+// ==========================================
+function setupLanguageModal() {
+    const modal = document.getElementById("modal-language");
+    const list = document.getElementById("language-list");
+    if (!modal || !list || !window.I18N) return;
+    I18N.langs.forEach(l => {
+        const b = document.createElement("button");
+        b.type = "button";
+        b.className = "more-item";
+        b.innerHTML = `<span class="material-icons-round">${l.code === I18N.lang ? "radio_button_checked" : "radio_button_unchecked"}</span><span></span>`;
+        b.children[1].textContent = l.label;
+        b.addEventListener("click", () => I18N.setLang(l.code));
+        list.appendChild(b);
+    });
+    document.getElementById("btn-open-language")?.addEventListener("click", () => modal.classList.add("open"));
+    document.getElementById("btn-close-language")?.addEventListener("click", () => modal.classList.remove("open"));
+}
 document.addEventListener("DOMContentLoaded", () => {
-    document.getElementById("btn-open-room-page")?.addEventListener("click", openRoomPage);
-    document.getElementById("btn-close-room-page")?.addEventListener("click", closeRoomPage);
-    document.getElementById("btn-rotate-back")?.addEventListener("click", closeRoomPage);
     // Esc キーで、いちばん手前の画面から順に閉じる（PC向け）
     document.addEventListener("keydown", (e) => {
         if (e.key !== "Escape") return;
         const editor = document.getElementById("room-editor");
         if (editor?.classList.contains("open")) { document.getElementById("btn-close-room-editor")?.click(); return; }
-        const open = [...document.querySelectorAll(".modal-overlay.open")].filter(m => m.querySelector(".close-button"));
-        if (open.length) { open[open.length - 1].querySelector(".close-button").click(); return; }
-        if (document.getElementById("room-page")?.classList.contains("open")) closeRoomPage();
     });
-    document.getElementById("btn-room-gacha")?.addEventListener("click", () => openGachaModal());
-    document.getElementById("btn-room-shop")?.addEventListener("click", () => openShop());
-    window.addEventListener("resize", updateRoomOrientation);
-    window.addEventListener("orientationchange", () => setTimeout(updateRoomOrientation, 200));
+    setupLanguageModal();
+    setupRoomToggle();
+    renderAffection();
+    // 画面サイズが変わっても、ペットが見える位置に保つ
+    let resizeTimer = null;
+    window.addEventListener("resize", () => {
+        clearTimeout(resizeTimer);
+        resizeTimer = setTimeout(centerRoomPreviewOnPet, 150);
+    });
+    requestAnimationFrame(() => requestAnimationFrame(centerRoomPreviewOnPet));
     // すでにペットがいる人にも、使い方を一度だけ見せる
     setTimeout(() => {
         if (typeof roomData !== "undefined" && roomData && roomData.pet) startOnboarding(false);
@@ -5251,9 +5433,9 @@ document.addEventListener("DOMContentLoaded", () => {
 const GACHA_COST = 1000;
 
 const GACHA_RARITY = {
-    1: { stars: "★",   label: "ノーマル",       weight: 6 },
-    2: { stars: "★★",  label: "レア",           weight: 3 },
-    3: { stars: "★★★", label: "スーパーレア",   weight: 1 }
+    1: { stars: "★",   label: t("ノーマル"),       weight: 6 },
+    2: { stars: "★★",  label: t("レア"),           weight: 3 },
+    3: { stars: "★★★", label: t("スーパーレア"),   weight: 1 }
 };
 
 const GACHA_POOL = [
@@ -5287,7 +5469,7 @@ function gachaRemainingItems() {
 function gachaInfo(item) {
     if (item.kind === "pet") {
         const p = PET_CATALOG[item.id];
-        return { label: p.label, img: PET_AWAKE_IMG[item.id], kindLabel: "ペット" };
+        return { label: p.label, img: PET_AWAKE_IMG[item.id], kindLabel: t("ペット") };
     }
     const m = MAP_CATALOG[item.id];
     return { label: m.label, img: m.img, kindLabel: "部屋" };
@@ -5318,9 +5500,9 @@ function gachaPick(items, rand) {
 // 1回ひく。ポイントを引いて、持ち物に追加して保存するところまでを一度にやる
 // （途中で画面を閉じても、ポイントだけ減って何も手に入らない、が起きないように）
 function pullGacha(rand) {
-    if (roomData.points < GACHA_COST) return { ok: false, error: "ポイントが足りません" };
+    if (roomData.points < GACHA_COST) return { ok: false, error: t("ポイントが足りません") };
     const remaining = gachaRemainingItems();
-    if (remaining.length === 0) return { ok: false, error: "すべて集めました！" };
+    if (remaining.length === 0) return { ok: false, error: t("すべて集めました！") };
 
     const item = gachaPick(remaining, rand);
     roomData.points -= GACHA_COST;
@@ -5401,7 +5583,7 @@ function renderGachaPane() {
     const remainEl = gEl("gacha-remain");
     if (remainEl) {
         remainEl.textContent = remaining.length === 0
-            ? "コンプリート！ すべてのペットと部屋を集めました。"
+            ? t("コンプリート！ すべてのペットと部屋を集めました。")
             : `まだ出会っていないもの：あと ${remaining.length} / ${total} 種`;
     }
 
@@ -5429,10 +5611,10 @@ function renderGachaPane() {
     const status = gEl("gacha-status");
     if (btn) {
         if (remaining.length === 0) {
-            btn.disabled = true; btn.textContent = "コンプリート済み";
+            btn.disabled = true; btn.textContent = t("コンプリート済み");
             if (status) status.textContent = "";
         } else if (roomData.points < GACHA_COST) {
-            btn.disabled = true; btn.textContent = "ガチャをひく";
+            btn.disabled = true; btn.textContent = t("ガチャをひく");
             if (status) status.textContent = `あと ${(GACHA_COST - roomData.points).toLocaleString()}pt でひけます。ログインや記録でためよう！`;
         } else {
             btn.disabled = false; btn.textContent = `ガチャをひく（${GACHA_COST.toLocaleString()}pt）`;
@@ -5459,7 +5641,7 @@ function collectionCard(kind, id, owned, active) {
     if (active) {
         const badge = document.createElement("span");
         badge.className = "collection-badge";
-        badge.textContent = "つかっている";
+        badge.textContent = t("つかっている");
         card.appendChild(badge);
     }
     const poolItem = GACHA_POOL.find(it => it.kind === kind && it.id === id);
@@ -5570,7 +5752,7 @@ function showGachaResult(item) {
 
     let input = null;
     if (item.kind === "pet") {
-        const label = document.createElement("label"); label.className = "gacha-name-label"; label.textContent = "名前をつけよう";
+        const label = document.createElement("label"); label.className = "gacha-name-label"; label.textContent = t("名前をつけよう");
         input = document.createElement("input");
         input.type = "text"; input.id = "gacha-name-input"; input.className = "gacha-name-input";
         input.maxLength = 12; input.value = roomData.petNames[item.id] || petDefaultName(item.id); input.autocomplete = "off";
@@ -5592,12 +5774,12 @@ function showGachaResult(item) {
     const primary = document.createElement("button");
     primary.type = "button"; primary.className = "primary-button";
     primary.id = "btn-gacha-equip";
-    primary.textContent = item.kind === "pet" ? "この子といっしょにくらす" : "この部屋にお引っこし";
+    primary.textContent = item.kind === "pet" ? "この子といっしょにくらす" : t("この部屋にお引っこし");
     primary.addEventListener("click", () => finish(true));
     const later = document.createElement("button");
     later.type = "button"; later.className = "text-cancel-button";
     later.id = "btn-gacha-later";
-    later.textContent = "あとで（コレクションに入れる）";
+    later.textContent = t("あとで（コレクションに入れる）");
     later.addEventListener("click", () => finish(false));
     actions.appendChild(primary); actions.appendChild(later);
     card.appendChild(actions);

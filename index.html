@@ -17,15 +17,18 @@
     <link rel="apple-touch-icon" href="assets/icon-192.png">
 
     <link rel="stylesheet" href="style.css">
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@400;500;700&display=swap">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@400;500;700&family=Nunito:wght@400;600;700&family=Noto+Sans+SC:wght@400;500;700&family=Noto+Sans+TC:wght@400;500;700&family=Huninn&display=swap">
     <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons+Round">
 </head>
 <body>
     <div class="app-container">
         <header class="app-header">
-            <span class="app-title">余裕、ある？</span>
+            <div class="currency-pill" id="currency-pill" title="所持ポイント">
+                <img src="assets/money_bag.png" alt="pt" class="currency-icon">
+                <span id="currency-amount">0</span>
+            </div>
             <div class="header-actions">
-                <button class="icon-button paw-icon" id="btn-open-room-page" type="button" title="マイペット" aria-label="マイペット">
+                <button class="icon-button paw-toggle" id="btn-toggle-room" type="button" title="マイルームを隠す／表示" aria-label="マイルームを隠す／表示" aria-pressed="false">
                     <span class="material-icons-round">pets</span>
                 </button>
                 <button class="icon-button planner-icon" id="btn-open-planner" type="button" title="貯金プランナー" aria-label="貯金プランナー">
@@ -49,27 +52,43 @@
 
             <div class="landscape-cols">
             <div class="col-left">
-            <!-- 表示月の切り替え（過去月の閲覧） -->
-            <div class="month-nav" id="month-nav">
-                <button class="month-nav-btn" id="btn-prev-month" title="前の月">
-                    <span class="material-icons-round">chevron_left</span>
-                </button>
-                <span class="month-nav-label" id="month-nav-label">-</span>
-                <button class="month-nav-btn" id="btn-next-month" title="次の月">
-                    <span class="material-icons-round">chevron_right</span>
-                </button>
-                <button class="month-nav-today" id="btn-this-month">今月へ</button>
-            </div>
+            <!-- マイペット（メイン画面） -->
+            <section class="room-section" id="room-section">
+              <div class="room-section-inner">
+                <div class="pet-room-preview" id="pet-room-preview">
+                    <div class="affection-badge" id="affection-badge" aria-hidden="true">
+                        <span class="material-icons-round">favorite</span>
+                        <span class="affection-bar"><span class="affection-bar-fill" id="affection-bar-fill"></span></span>
+                        <span class="affection-num"><span id="affection-value">0</span>/100</span>
+                    </div>
+                    <div class="room-dialogue-box" id="room-dialogue-box">
+                        <p id="room-dialogue-text"></p>
+                    </div>
+                    <div class="room-scroll-wrapper">
+                        <div class="room-scene" id="room-scene-preview"></div>
+                    </div>
+                </div>
+              </div>
+            </section>
 
             <!-- 予算サマリー -->
             <div class="budget-box" id="budget-box">
                 <div class="budget-box-header">
                     <div class="budget-heading">
+                        <button class="budget-nav-btn" id="btn-prev-month" type="button" title="前の月" aria-label="前の月">
+                            <span class="material-icons-round">chevron_left</span>
+                        </button>
                         <span class="budget-box-label" id="budget-period-label">2026年7月の予算</span>
+                        <button class="budget-nav-btn" id="btn-next-month" type="button" title="次の月" aria-label="次の月">
+                            <span class="material-icons-round">chevron_right</span>
+                        </button>
                     </div>
-                    <button class="budget-edit-btn" id="btn-edit-budget" type="button" title="予算を編集" aria-label="予算を編集">
-                        <span class="material-icons-round">edit</span>
-                    </button>
+                    <div class="budget-header-actions">
+                        <button class="budget-today-btn" id="btn-this-month" type="button" style="display:none;">今月へ</button>
+                        <button class="budget-edit-btn" id="btn-edit-budget" type="button" title="予算を編集" aria-label="予算を編集">
+                            <span class="material-icons-round">edit</span>
+                        </button>
+                    </div>
                 </div>
                 <div class="budget-box-display" id="budget-box-display">
                     <p class="budget-remaining-text" id="budget-remaining-text">予算が未設定です</p>
@@ -161,8 +180,17 @@
                         <button class="more-item" id="btn-open-details" type="button">
                             <span class="material-icons-round">bar_chart</span><span>詳細</span><span class="material-icons-round more-item-chevron">chevron_right</span>
                         </button>
+                        <button class="more-item" id="btn-open-gacha" type="button">
+                            <span class="material-icons-round">casino</span><span>ガチャ</span><span class="material-icons-round more-item-chevron">chevron_right</span>
+                        </button>
+                        <button class="more-item" id="btn-open-shop" type="button">
+                            <span class="material-icons-round">storefront</span><span>ショップ</span><span class="material-icons-round more-item-chevron">chevron_right</span>
+                        </button>
                         <button class="more-item" id="btn-open-data" type="button">
                             <span class="material-icons-round">storage</span><span>データ管理</span><span class="material-icons-round more-item-chevron">chevron_right</span>
+                        </button>
+                        <button class="more-item" id="btn-open-language" type="button">
+                            <span class="material-icons-round">translate</span><span>言語 / Language</span><span class="material-icons-round more-item-chevron">chevron_right</span>
                         </button>
                         <button class="more-item" id="btn-open-category" type="button">
                             <span class="material-icons-round">settings</span><span>カテゴリ設定</span><span class="material-icons-round more-item-chevron">chevron_right</span>
@@ -181,6 +209,16 @@
                 </div>
                 <div class="modal-body">
                     <input type="hidden" id="expense-edit-id" value="">
+
+                    <div class="receipt-scan" id="receipt-scan">
+                        <label class="secondary-button receipt-scan-btn" for="input-receipt-image" id="receipt-scan-label">
+                            <span class="material-icons-round">receipt_long</span>
+                            <span>レシートから自動入力</span>
+                        </label>
+                        <input type="file" id="input-receipt-image" accept="image/*" hidden>
+                        <p class="field-hint receipt-note">APIキーなしで1日1回まで無料。画像は読み取りだけに使い、保存しません。</p>
+                        <p class="field-hint receipt-status" id="receipt-status" role="status" aria-live="polite"></p>
+                    </div>
 
                     <div class="form-group">
                         <label>金額 (円)</label>
@@ -400,32 +438,8 @@
 
             </div>
 
-    <!-- マイルーム（専用ページ・横画面いっぱい） -->
-        <div class="room-page" id="room-page" aria-hidden="true">
-            <div class="room-page-bar">
-                <button class="room-bar-btn" id="btn-close-room-page" type="button" aria-label="もどる">
-                    <span class="material-icons-round">arrow_back</span><span>もどる</span>
-                </button>
-                <div class="currency-pill" id="currency-pill" title="所持ポイント">
-                    <img src="assets/money_bag.png" alt="pt" class="currency-icon">
-                    <span id="currency-amount">0</span>
-                </div>
-                <div class="room-bar-actions">
-                    <button class="room-bar-btn" id="btn-room-gacha" type="button"><span class="material-icons-round">casino</span><span>ガチャ</span></button>
-                    <button class="room-bar-btn" id="btn-room-shop" type="button"><span class="material-icons-round">storefront</span><span>ショップ</span></button>
-                    <button class="room-bar-btn" id="btn-open-room-editor" type="button"><span class="material-icons-round">edit</span><span>編集</span></button>
-                </div>
-            </div>
-            <div class="pet-room-preview" id="pet-room-preview">
-                <div class="room-dialogue-box" id="room-dialogue-box">
-                    <p id="room-dialogue-text"></p>
-                </div>
-                <div class="room-scroll-wrapper">
-                    <div class="room-scene" id="room-scene-preview"></div>
-                </div>
-            </div>
-
-            <!-- ガチャ・コレクション -->
+    
+    <!-- ガチャ・コレクション -->
             <div class="modal-overlay shop-overlay" id="modal-gacha">
                 <div class="modal-content gacha-content">
                     <div class="modal-header">
@@ -476,8 +490,8 @@
                 </div>
                 <div class="gacha-overlay" id="gacha-overlay"></div>
             </div>
-    
-            <!-- ショップモーダル（フルスクリーン） -->
+
+        <!-- ショップモーダル（フルスクリーン） -->
             <div class="modal-overlay shop-overlay" id="modal-shop">
                 <div class="modal-content shop-content">
                     <div class="modal-header">
@@ -495,8 +509,21 @@
                     </div>
                 </div>
             </div>
-    
-            <!-- ルーム編集（フルスクリーン） -->
+
+        <!-- 言語 -->
+        <div class="modal-overlay shop-overlay" id="modal-language">
+            <div class="modal-content shop-content">
+                <div class="modal-header">
+                    <h3>言語 / Language</h3>
+                    <button class="close-button" id="btn-close-language" type="button">閉じる</button>
+                </div>
+                <div class="modal-body">
+                    <nav class="menu-list" id="language-list"></nav>
+                </div>
+            </div>
+        </div>
+
+    <!-- ルーム編集（フルスクリーン） -->
             <div class="room-editor" id="room-editor">
                 <div class="room-editor-toolbar">
                     <button class="icon-button room-editor-close" id="btn-close-room-editor">
@@ -504,6 +531,10 @@
                     </button>
                     <span class="room-editor-title">マイルーム編集</span>
                     <span class="room-editor-hint">横にスワイプして部屋全体を確認。ドラッグで移動。</span>
+                    <div class="room-editor-shortcuts">
+                        <button class="icon-button" id="btn-editor-gacha" type="button" title="ガチャ" aria-label="ガチャ"><span class="material-icons-round">casino</span></button>
+                        <button class="icon-button" id="btn-editor-shop" type="button" title="ショップ" aria-label="ショップ"><span class="material-icons-round">storefront</span></button>
+                    </div>
                 </div>
                 <!-- [修改点] 编辑器也支持横向滚动 -->
                 <div class="room-editor-scroll-wrapper">
@@ -520,17 +551,8 @@
                     <div class="room-editor-tray-items" id="room-editor-tray-items"></div>
                 </div>
             </div>
-    
-    
-            <!-- 縦持ちのとき：横向きにするまでマイペットは使えない -->
-            <div class="rotate-notice" id="rotate-notice" aria-hidden="true">
-                <span class="material-icons-round">screen_rotation</span>
-                <p class="rotate-title">スマホを横向きにしてください</p>
-                <p class="rotate-sub">マイペットは横画面専用です</p>
-                <button class="room-bar-btn" id="btn-rotate-back" type="button"><span class="material-icons-round">arrow_back</span><span>もどる</span></button>
-            </div>
-        </div>
 
+    <script src="i18n.js"></script>
     <script src="app.js"></script>
 </body>
 </html>
