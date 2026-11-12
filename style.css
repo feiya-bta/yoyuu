@@ -2683,7 +2683,11 @@ html, body {
 
 /* --- 動きを減らす設定の人には、アニメーションを止める --- */
 @media (prefers-reduced-motion: reduce) {
-    *, *::before, *::after {
+    /* ペットの部屋の動き（歩く・ゆれる・ジャンプ・ハート）だけは止めない。
+       それ以外の演出は、これまでどおり「動きを減らす」設定に従う。 */
+    *:not(.pet-item):not(.pet-item *):not(.pet-reaction):not(.pet-reaction *),
+    *:not(.pet-item):not(.pet-item *):not(.pet-reaction):not(.pet-reaction *)::before,
+    *:not(.pet-item):not(.pet-item *):not(.pet-reaction):not(.pet-reaction *)::after {
         animation-duration: 0.01ms !important;
         animation-iteration-count: 1 !important;
         transition-duration: 0.01ms !important;
@@ -3264,3 +3268,157 @@ html[lang="zh-Hant"] * { font-synthesis: none; }   /* Huninn は太字が無い�
     #gacha-pane-pull { display: block; }
     #gacha-pane-pull > .gacha-machine { margin: 0 auto 14px; }
 }
+
+/* ================================================================
+   v3.5 追加分
+   ================================================================ */
+
+/* ---- 通知（トースト）：ペットの吹き出しではなく、画面に固定で出す ---- */
+.app-toast {
+    z-index: 400;
+    max-width: min(88vw, 420px);
+    white-space: normal;
+    text-align: center;
+    line-height: 1.5;
+    /* 画面の上に出す（保存ボタン・元に戻すバー・好感度バーに重ならない） */
+    top: calc(10px + env(safe-area-inset-top));
+    bottom: auto;
+    transform: translate(-50%, -12px);
+}
+.app-toast.show { transform: translate(-50%, 0); }
+
+/* ---- レシート読み取り：明細と合計のズレ確認（v.3 から移植） ---- */
+.receipt-warning-mismatch {
+    color: var(--warn);
+    font-weight: 600;
+}
+.receipt-mismatch-gate {
+    margin-top: 8px;
+    padding: 8px 10px;
+    border-left: 3px solid var(--warn);
+    background: rgba(255, 209, 102, 0.16);
+}
+.receipt-mismatch-gate[hidden] { display: none; }
+.receipt-mismatch-hint {
+    margin: 0 0 6px;
+    color: var(--warn);
+    font-size: 0.72rem;
+    line-height: 1.5;
+}
+.receipt-mismatch-label {
+    display: flex;
+    align-items: flex-start;
+    gap: 7px;
+    color: var(--ink);
+    font-size: 0.72rem;
+    line-height: 1.45;
+    cursor: pointer;
+}
+.receipt-mismatch-label input {
+    margin: 2px 0 0;
+    flex: none;
+    accent-color: var(--warn);
+}
+.item-row.is-receipt-mismatch {
+    background: rgba(255, 209, 102, 0.18);
+    box-shadow: inset 0 0 0 2px var(--warn);
+}
+.item-row.is-receipt-mismatch .item-name,
+.item-row.is-receipt-mismatch .item-price {
+    border-color: var(--warn);
+    background: rgba(255, 246, 218, 0.9);
+}
+#expense-amount.is-receipt-mismatch {
+    border-color: var(--warn);
+    box-shadow: 0 0 0 2px rgba(143, 99, 43, 0.18);
+}
+
+/* ---- 履歴カード：タップで編集 ---- */
+.card.is-tappable {
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+}
+.card.is-tappable:active { background: rgba(0, 0, 0, 0.03); }
+.card.is-tappable:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.card-info { min-width: 0; }
+
+/* ---- カテゴリ設定：三本線をドラッグして並び替え ---- */
+.category-drag-handle {
+    font-size: 22px;
+    color: var(--muted);
+    cursor: grab;
+    touch-action: none;
+    -webkit-user-select: none;
+    user-select: none;
+    padding: 10px 6px;
+    margin: -10px -6px -10px -4px;
+    flex-shrink: 0;
+}
+.category-manage-row.is-dragging {
+    position: relative;
+    z-index: 5;
+    background: var(--surface);
+    box-shadow: 0 8px 22px rgba(0, 0, 0, 0.18);
+    border-radius: var(--radius-soft);
+    cursor: grabbing;
+    transition: none;
+}
+.category-manage-list.is-reordering { -webkit-user-select: none; user-select: none; }
+
+/* ---- 支出を記録／編集：スマホで右にはみ出さない・ボタンを下端にそろえる ---- */
+#modal-expense .modal-content {
+    display: flex;
+    flex-direction: column;
+    overflow-x: hidden;
+    padding-bottom: 0;
+}
+#modal-expense .modal-body,
+#modal-expense .form-group,
+#modal-expense .items-editor,
+#modal-expense .receipt-scan {
+    min-width: 0;
+    max-width: 100%;
+    box-sizing: border-box;
+}
+#modal-expense .modal-body { flex: 1 0 auto; }
+#modal-expense .datetime-input {
+    display: block;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    min-height: 42px;
+    box-sizing: border-box;
+    -webkit-appearance: none;
+    appearance: none;
+}
+#modal-expense .item-row { min-width: 0; }
+#modal-expense .item-row .item-name { flex: 1 1 auto; min-width: 0; }
+#modal-expense .item-row .item-price { flex: 0 0 76px; min-width: 0; width: 76px; }
+#modal-expense .modal-footer {
+    position: sticky;
+    bottom: 0;
+    z-index: 5;
+    margin: 12px -22px 0;
+    padding: 12px 22px calc(14px + env(safe-area-inset-bottom));
+    background: var(--surface);
+    box-shadow: 0 -8px 14px rgba(0, 0, 0, 0.04);
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    box-sizing: border-box;
+}
+#modal-expense .modal-footer .primary-button { width: 100%; box-sizing: border-box; }
+.expense-delete-button {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 12px;
+    background: transparent;
+    border: 1px solid var(--danger);
+    border-radius: var(--radius-soft);
+    color: var(--danger);
+    font: inherit;
+    font-size: 0.82rem;
+    cursor: pointer;
+}
+.expense-delete-button[hidden] { display: none; }
+.expense-delete-button:active { background: rgba(163, 76, 61, 0.08); }

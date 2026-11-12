@@ -59,6 +59,32 @@ function parseDatetimeLocalValue(value) {
     return isNaN(d.getTime()) ? null : d;
 }
 
+// 日付だけを扱う入力欄（type="date"）用。時刻は記録・表示しない。
+function toDateInputValue(value) {
+    const d = value instanceof Date ? value : new Date(value);
+    if (isNaN(d.getTime())) return "";
+    const pad = (n) => String(n).padStart(2, "0");
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+}
+
+function parseDateInputValue(value) {
+    const m = String(value || "").match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (!m) return null;
+    const d = new Date(parseInt(m[1], 10), parseInt(m[2], 10) - 1, parseInt(m[3], 10), 12, 0, 0, 0);
+    return isNaN(d.getTime()) ? null : d;
+}
+
+// 選んだ日付から、保存用の日時を作る（時刻は表示せず、同じ日の並び順を保つためだけに持つ）
+function composeExpenseWhen(dateValue, prevDatetime) {
+    const picked = parseDateInputValue(dateValue);
+    const now = new Date();
+    const prev = prevDatetime ? new Date(prevDatetime) : null;
+    if (!picked) return (prev && !isNaN(prev.getTime())) ? prev : now;
+    if (prev && !isNaN(prev.getTime()) && localDateKey(prev) === localDateKey(picked)) return prev;
+    return new Date(picked.getFullYear(), picked.getMonth(), picked.getDate(),
+        now.getHours(), now.getMinutes(), now.getSeconds());
+}
+
 // ==========================================
 // 1. デフォルトデータ
 // ==========================================
@@ -552,7 +578,9 @@ function renderCategoryManageList() {
     appData.categories.forEach(cat => {
         const row = document.createElement("div");
         row.className = "category-manage-row";
+        row.dataset.catId = cat.id;
         row.innerHTML = `
+            <span class="material-icons-round category-drag-handle" data-cat-drag title="${t('ドラッグで並び替え')}" aria-label="${t('ドラッグで並び替え')}">menu</span>
             <span class="category-manage-name">${escapeHtml(cat.name)}</span>
             <span class="category-manage-actions">
                 <span class="material-icons-round" data-cat-action="edit" data-cat-id="${escapeHtml(cat.id)}" title="${t('編集')}">edit</span>
@@ -561,6 +589,90 @@ function renderCategoryManageList() {
         `;
         list.appendChild(row);
     });
+}
+
+// 三本線アイコンをつかんで上下にドラッグすると並び順を変えられる（指でもマウスでも動く）
+function setupCategoryReorder() {
+    const list = document.getElementById("category-manage-list");
+    if (!list || list.dataset.reorderReady) return;
+    list.dataset.reorderReady = "1";
+
+    let drag = null;
+
+    const rowsExcept = (row) => Array.from(list.querySelectorAll(".category-manage-row")).filter(r => r !== row);
+
+    list.addEventListener("pointerdown", (e) => {
+        const handle = e.target.closest("[data-cat-drag]");
+        if (!handle) return;
+        const row = handle.closest(".category-manage-row");
+        if (!row) return;
+        e.preventDefault();
+        const rect = row.getBoundingClientRect();
+        drag = { row, handle, pointerId: e.pointerId, startY: e.clientY, offset: 0, rowH: rect.height };
+        try { handle.setPointerCapture(e.pointerId); } catch (err) { /* 古いブラウザでは無視 */ }
+        row.classList.add("is-dragging");
+        list.classList.add("is-reordering");
+    });
+
+    list.addEventListener("pointermove", (e) => {
+        if (!drag || e.pointerId !== drag.pointerId) return;
+        e.preventDefault();
+        const row = drag.row;
+        let dy = e.clientY - drag.startY - drag.offset;
+        row.style.transform = `translateY(${dy}px)`;
+
+        // 自分より上／下の行の真ん中を越えたら、入れ替える
+        const myRect = row.getBoundingClientRect();
+        const myMid = myRect.top + myRect.height / 2;
+        const others = rowsExcept(row);
+        for (const other of others) {
+            const r = other.getBoundingClientRect();
+            const mid = r.top + r.height / 2;
+            const isAbove = other.compareDocumentPosition(row) & Node.DOCUMENT_POSITION_FOLLOWING;
+            if (isAbove && myMid < mid) {
+                const before = row.getBoundingClientRect().top;
+                list.insertBefore(row, other);
+                const moved = row.getBoundingClientRect().top - before;
+                drag.offset += moved;
+                row.style.transform = `translateY(${e.clientY - drag.startY - drag.offset}px)`;
+                break;
+            }
+            if (!isAbove && myMid > mid) {
+                const before = row.getBoundingClientRect().top;
+                list.insertBefore(row, other.nextSibling);
+                const moved = row.getBoundingClientRect().top - before;
+                drag.offset += moved;
+                row.style.transform = `translateY(${e.clientY - drag.startY - drag.offset}px)`;
+                break;
+            }
+        }
+    });
+
+    const finish = (e, cancelled) => {
+        if (!drag || e.pointerId !== drag.pointerId) return;
+        const { row, handle } = drag;
+        try { handle.releasePointerCapture(drag.pointerId); } catch (err) { /* 無視 */ }
+        row.classList.remove("is-dragging");
+        row.style.transform = "";
+        list.classList.remove("is-reordering");
+        drag = null;
+
+        const ids = Array.from(list.querySelectorAll(".category-manage-row")).map(r => r.dataset.catId);
+        const byId = new Map(appData.categories.map(c => [String(c.id), c]));
+        const next = ids.map(id => byId.get(String(id))).filter(Boolean);
+        const changed = next.length === appData.categories.length
+            && next.some((c, i) => c !== appData.categories[i]);
+        if (cancelled || !changed) {
+            renderCategoryManageList();
+            return;
+        }
+        appData.categories = next;
+        saveData();
+        refreshCategoryViews();
+        vibrate(10);
+    };
+    list.addEventListener("pointerup", (e) => finish(e, false));
+    list.addEventListener("pointercancel", (e) => finish(e, true));
 }
 
 function openCategoryForm(mode) {
@@ -684,8 +796,10 @@ function renderExpenseTimeline() {
             : "";
 
         const card = document.createElement("div");
-        card.className = "card";
+        card.className = "card is-tappable";
         card.dataset.expId = exp.id;
+        card.tabIndex = 0;
+        card.setAttribute("role", "button");
         card.innerHTML = `
             <div class="card-info">
                 <div class="card-head">
@@ -697,13 +811,6 @@ function renderExpenseTimeline() {
             </div>
             <div class="card-right">
                 <span class="main-amount">${fmtYen(Number(exp.amount) || 0)}</span>
-                <div class="card-meta">
-                    <span class="badge-time">${formatTimeLabel(exp.datetime)}</span>
-                    <div class="card-actions">
-                        <span class="material-icons-round" data-action="edit" title="${t('編集')}">edit</span>
-                        <span class="material-icons-round delete-icon" data-action="delete" title="${t('削除')}">delete</span>
-                    </div>
-                </div>
             </div>
         `;
         container.appendChild(card);
@@ -785,28 +892,28 @@ function validateExpenseInput() {
     const btnSave = document.getElementById("btn-save-expense");
     if (!amountInput || !btnSave) return;
     const amount = parseFloat(amountInput.value);
-    btnSave.disabled = isNaN(amount) || amount <= 0;
+    const needsConfirmation = receiptMismatchPending && !receiptMismatchConfirmed;
+    btnSave.disabled = isNaN(amount) || amount <= 0 || needsConfirmation;
 }
 
 // ==========================================
 // 7. イベントリスナー
 // ==========================================
 function showToast(message) {
-    if (typeof petSay === "function") {
-        petSay(message);
-    } else {
-        let toast = document.getElementById("app-toast");
-        if (!toast) {
-            toast = document.createElement("div");
-            toast.id = "app-toast";
-            toast.className = "app-toast";
-            document.body.appendChild(toast);
-        }
-        toast.textContent = message;
-        toast.classList.add("show");
-        clearTimeout(toast._hideTimer);
-        toast._hideTimer = setTimeout(() => toast.classList.remove("show"), 2600);
+    if (!message) return;
+    let toast = document.getElementById("app-toast");
+    if (!toast) {
+        toast = document.createElement("div");
+        toast.id = "app-toast";
+        toast.className = "app-toast";
+        toast.setAttribute("role", "status");
+        toast.setAttribute("aria-live", "polite");
+        document.body.appendChild(toast);
     }
+    toast.textContent = message;
+    toast.classList.add("show");
+    clearTimeout(toast._hideTimer);
+    toast._hideTimer = setTimeout(() => toast.classList.remove("show"), 3200);
 }
 
 function ensureBudgetIsSet() {
@@ -823,7 +930,7 @@ function ensureBudgetIsSet() {
     void budgetBox?.offsetWidth;
     budgetBox?.classList.add("budget-required-shake");
 
-    showToast(getPetLine("idle", t("先に今月の予算を設定してね！"))); 
+    showToast(t("先に今月の予算を設定してね！"));
     vibrate(20);
     return false;
 }
@@ -909,7 +1016,7 @@ function setupEventListeners() {
             const value = parseFloat(budgetInput.value);
 
             if (isNaN(value) || value <= 0) {
-                showToast(getPetLine("idle", t("1円以上の予算を設定してね！")));
+                showToast(t("1円以上の予算を設定してね！"));
                 return;
             }
 
@@ -930,7 +1037,7 @@ function setupEventListeners() {
             renderPlanCard();
             document.getElementById("budget-box-display").classList.remove("hidden");
             document.getElementById("budget-box-edit").classList.remove("open");
-            showToast(getPetLine("idle", t("{m}の予算を {v}円 にしたよ", { m: formatMonthLabel(monthKey), v: value.toLocaleString() })));
+            showToast(t("{m}の予算を {v}円 にしたよ", { m: formatMonthLabel(monthKey), v: value.toLocaleString() }));
             if (typeof onboardingNotify === "function") onboardingNotify("budget");
         });
     }
@@ -952,7 +1059,18 @@ function setupEventListeners() {
     }
 
     const expenseAmount = document.getElementById("expense-amount");
-    if (expenseAmount) expenseAmount.addEventListener("input", validateExpenseInput);
+    if (expenseAmount) expenseAmount.addEventListener("input", () => {
+        if (pendingReceipt) refreshReceiptMismatchState();
+        else validateExpenseInput();
+    });
+
+    document.getElementById("btn-delete-expense")?.addEventListener("click", async () => {
+        const editId = document.getElementById("expense-edit-id")?.value;
+        if (!editId) return;
+        if (await confirmDeleteExpense(editId)) {
+            document.getElementById("modal-expense")?.classList.remove("open");
+        }
+    });
 
     const btnSaveExpense = document.getElementById("btn-save-expense");
     if (btnSaveExpense) {
@@ -966,13 +1084,22 @@ function setupEventListeners() {
             const store = storeEl ? storeEl.value.trim() : "";
             const items = collectItemsFromForm();
 
-            const datetimeEl = document.getElementById("expense-datetime");
-            const when = parseDatetimeLocalValue(datetimeEl ? datetimeEl.value : "") || now;
+            const dateEl = document.getElementById("expense-datetime");
+            const prevExpense = editId ? appData.expenses.find(e => String(e.id) === String(editId)) : null;
+            const when = composeExpenseWhen(dateEl ? dateEl.value : "", prevExpense ? prevExpense.datetime : null);
 
             if (isNaN(amount) || amount <= 0) return;
 
+            if (pendingReceipt) {
+                const receiptCheck = validateReceipt(currentReceiptDraft());
+                if (receiptCheck.mismatch && !receiptMismatchConfirmed) {
+                    showToast(t("明細と合計が一致していません。確認チェックを入れてから保存してください。"));
+                    return;
+                }
+            }
+
             if (localMonthKey(when) > getCurrentMonthKey()) {
-                alert("来月以降の日付は記録できません。日時を確認してください。");
+                alert(t("来月以降の日付は記録できません。日付を確認してください。"));
                 return;
             }
 
@@ -987,6 +1114,7 @@ function setupEventListeners() {
             }
 
             let targetMonth = selectedMonthKey;
+            let gainedAffection = 0;
 
             if (editId) {
                 const existing = appData.expenses.find(e => String(e.id) === String(editId));
@@ -1027,7 +1155,7 @@ function setupEventListeners() {
                 roomData.points += 100;
                 saveRoomData();
                 renderCurrency();
-                addAffection(1);
+                gainedAffection = addAffection(1);
             }
 
             saveData();
@@ -1039,10 +1167,12 @@ function setupEventListeners() {
 
             if (editId) {
                 spawnPetReaction("favorite");
-                petSay(getPetLine("idle", t("更新した！")));
+                showToast(t("支出を更新しました"));
             } else {
                 petCelebrate();
-                petSay(getPetLine("idle", t("記録できた！100ptゲット。えらい")));
+                const parts = [t("+{p}pt 獲得", { p: 100 })];
+                if (gainedAffection > 0) parts.push(t("好感度 +{a}", { a: gainedAffection }));
+                showToast(parts.join("　"));
                 playCoin();
             }
             vibrate(25);
@@ -1169,18 +1299,27 @@ function setupEventListeners() {
             const actionEl = e.target.closest("[data-action]");
             const action = actionEl ? actionEl.dataset.action : null;
 
-            if (action === "edit") {
-                editExpense(expId);
-            } else if (action === "delete") {
-                deleteExpense(expId);
-            } else if (action === "toggle") {
+            if (action === "toggle") {
                 const box = card.querySelector(".card-items");
                 if (!box) return;
                 box.hidden = !box.hidden;
                 card.classList.toggle("items-open", !box.hidden);
+                return;
             }
+            // 明細の中をタップしたときは開閉だけ。それ以外（金額・メモなど）は編集画面を開く
+            if (e.target.closest(".card-items")) return;
+            editExpense(expId);
+        });
+        timeline.addEventListener("keydown", (e) => {
+            if (e.key !== "Enter" && e.key !== " ") return;
+            const card = e.target.closest ? e.target.closest(".card") : null;
+            if (!card || e.target !== card || !card.dataset.expId) return;
+            e.preventDefault();
+            editExpense(card.dataset.expId);
         });
     }
+
+    setupCategoryReorder();
 
     const catListEl = document.getElementById("category-manage-list");
     if (catListEl) {
@@ -1257,7 +1396,7 @@ function addItemRow(name = "", price = "", categoryId = null) {
         <input type="text" class="item-name" placeholder="${t('品目（例：牛乳）')}" value="${escapeHtml(name)}" maxlength="40">
         <input type="number" class="item-price" placeholder="0" min="0" step="1" value="${price === "" || price === undefined ? "" : (Number(price) || 0)}">
         <span class="item-unit">${t("円")}</span>
-        <button type="button" class="item-remove" data-item-remove title="この行を削除">
+        <button type="button" class="item-remove" data-item-remove title="${t('この行を削除')}">
             <span class="material-icons-round">close</span>
         </button>
     `;
@@ -1295,9 +1434,11 @@ function updateItemsSummary() {
     const items = collectItemsFromForm();
     if (items.length === 0) {
         el.textContent = "";
+        refreshReceiptMismatchState();
         return;
     }
     el.textContent = t("品目 {k}点・合計 {s}", { k: items.length, s: fmtYen(sumItemPrices()) });
+    refreshReceiptMismatchState();
 }
 
 function renderItemsEditor(items) {
@@ -1318,7 +1459,15 @@ function limitExpenseDatetime() {
     const el = document.getElementById("expense-datetime");
     if (!el) return;
     const n = new Date();
-    el.max = toDatetimeLocalValue(new Date(n.getFullYear(), n.getMonth() + 1, 0, 23, 59));
+    el.max = toDateInputValue(new Date(n.getFullYear(), n.getMonth() + 1, 0));
+}
+
+// 新規のときは「記録する」、編集のときは「保存」＋「この支出を削除」を出す
+function setExpenseModalMode(editing) {
+    const btn = document.getElementById("btn-save-expense");
+    if (btn) btn.textContent = editing ? t("保存") : t("記録する");
+    const del = document.getElementById("btn-delete-expense");
+    if (del) del.hidden = !editing;
 }
 
 function openExpenseModal() {
@@ -1335,10 +1484,12 @@ function openExpenseModal() {
     if (amountEl) amountEl.value = "";
     if (memoEl) memoEl.value = "";
     if (storeEl) storeEl.value = "";
-    if (datetimeEl) datetimeEl.value = toDatetimeLocalValue(new Date());
+    if (datetimeEl) datetimeEl.value = toDateInputValue(new Date());
     limitExpenseDatetime();
     resetReceiptUi();
+    renderItemsEditor([]);
     renderCategorySelect();
+    setExpenseModalMode(false);
 
     validateExpenseInput();
     if (modal) modal.classList.add("open");
@@ -1364,9 +1515,12 @@ function editExpense(id) {
     if (categoryEl) categoryEl.value = exp.categoryId;
     if (memoEl) memoEl.value = exp.memo || "";
     if (storeEl) storeEl.value = exp.store || "";
-    if (datetimeEl) datetimeEl.value = toDatetimeLocalValue(exp.datetime);
+    if (datetimeEl) datetimeEl.value = toDateInputValue(exp.datetime);
     limitExpenseDatetime();
     resetReceiptUi();
+    renderItemsEditor(Array.isArray(exp.items) ? exp.items : []);
+    setExpenseModalMode(true);
+    showReceiptThumbnail(exp.receiptImageId);
 
     validateExpenseInput();
     if (modal) modal.classList.add("open");
@@ -1444,6 +1598,23 @@ function deleteExpense(id) {
         refreshAfterExpenseChange();
         playPop();
     });
+}
+
+async function confirmDeleteExpense(id) {
+    const ok = await showCenterConfirm({
+        id: "delete-expense-confirm",
+        title: t("この支出を削除しますか？"),
+        rows: [
+            { icon: "delete", text: t("この支出を履歴から削除します。") },
+            { icon: "undo", text: t("削除した直後は、画面下の「元に戻す」で取り消せます。") }
+        ],
+        okLabel: t("削除する"),
+        cancelLabel: t("キャンセル"),
+        danger: true
+    });
+    if (!ok) return false;
+    deleteExpense(id);
+    return true;
 }
 
 // ==========================================
@@ -1641,12 +1812,12 @@ function buildUnifiedCsvText() {
 
     lines.push("");
     lines.push("# EXPENSES");
-    lines.push("日時,カテゴリ,金額,メモ,店舗,品目");
+    lines.push("日付,カテゴリ,金額,メモ,店舗,品目");
     const sorted = [...activeExpenses()].sort((a, b) => String(a.datetime).localeCompare(String(b.datetime)));
     sorted.forEach(exp => {
         const cat = getCategoryById(exp.categoryId);
         lines.push([
-            exp.datetime,
+            exp.dateKey || localDateKey(exp.datetime),
             cat ? cat.name : "不明",
             exp.amount,
             exp.memo || "",
@@ -2157,9 +2328,85 @@ function clearPlan() {
 // 12. レシート読み取り（OCR）
 // ==========================================
 let pendingReceipt = null;
+let receiptMismatchPending = false;
+let receiptMismatchConfirmed = false;
+
+function currentReceiptDraft() {
+    const amountEl = document.getElementById("expense-amount");
+    const total = amountEl ? (parseFloat(amountEl.value) || 0) : 0;
+    const base = pendingReceipt && pendingReceipt.receipt ? pendingReceipt.receipt : {};
+    return {
+        total,
+        items: collectItemsFromForm(),
+        tax8: Number(base.tax8) || 0,
+        tax10: Number(base.tax10) || 0
+    };
+}
+
+function clearReceiptMismatchMarks() {
+    document.querySelectorAll("#expense-items-list .item-row.is-receipt-mismatch").forEach(row => {
+        row.classList.remove("is-receipt-mismatch");
+        row.querySelectorAll("input").forEach(input => input.removeAttribute("aria-invalid"));
+    });
+    const amountEl = document.getElementById("expense-amount");
+    if (amountEl) amountEl.classList.remove("is-receipt-mismatch");
+}
+
+function markReceiptMismatchRows(diff, mismatch) {
+    clearReceiptMismatchMarks();
+    if (!mismatch) return;
+
+    const rows = Array.from(document.querySelectorAll("#expense-items-list .item-row"));
+    let target = null;
+    if (diff > 2) {
+        // 差額とちょうど同じ金額の行があれば、その行を最有力候補として強調する。
+        target = rows.find(row => {
+            const input = row.querySelector(".item-price");
+            return Math.abs((parseFloat(input ? input.value : "") || 0) - diff) < 1;
+        }) || null;
+    }
+
+    rows.forEach(row => {
+        if (!target || row === target) {
+            row.classList.add("is-receipt-mismatch");
+            row.querySelectorAll("input").forEach(input => input.setAttribute("aria-invalid", "true"));
+        }
+    });
+
+    // 合計の方が大きい（明細が足りない）ときは、合計欄も一緒に強調する。
+    if (diff < -2 || !target) {
+        const amountEl = document.getElementById("expense-amount");
+        if (amountEl) amountEl.classList.add("is-receipt-mismatch");
+    }
+}
+
+function refreshReceiptMismatchState() {
+    if (!pendingReceipt) {
+        receiptMismatchPending = false;
+        receiptMismatchConfirmed = false;
+        clearReceiptMismatchMarks();
+        validateExpenseInput();
+        return;
+    }
+
+    const check = validateReceipt(currentReceiptDraft());
+    receiptMismatchPending = !!check.mismatch;
+    // 明細・合計を編集したら、前の確認は無効にする。
+    receiptMismatchConfirmed = false;
+
+    const gate = document.getElementById("receipt-mismatch-gate");
+    if (gate) gate.hidden = !receiptMismatchPending;
+    const checkbox = document.getElementById("receipt-mismatch-check");
+    if (checkbox) checkbox.checked = false;
+
+    markReceiptMismatchRows(check.diff, receiptMismatchPending);
+    validateExpenseInput();
+}
 
 function resetReceiptUi() {
     pendingReceipt = null;
+    receiptMismatchPending = false;
+    receiptMismatchConfirmed = false;
 
     const statusEl = document.getElementById("receipt-status");
     if (statusEl) statusEl.textContent = "";
@@ -2172,6 +2419,8 @@ function resetReceiptUi() {
 
     const warnings = document.getElementById("receipt-warnings");
     if (warnings) warnings.innerHTML = "";
+
+    clearReceiptMismatchMarks();
 
     const input = document.getElementById("input-receipt-image");
     if (input) input.value = "";
@@ -2191,7 +2440,7 @@ async function showReceiptThumbnail(imageId) {
 
 async function handleReceiptFile(file) {
     const statusEl = document.getElementById("receipt-status");
-    const setStatus = (t) => { if (statusEl) statusEl.textContent = t; };
+    const setStatus = (msg) => { if (statusEl) statusEl.textContent = msg; };
 
     if (!file) return;
 
@@ -2213,8 +2462,9 @@ async function handleReceiptFile(file) {
             return;
         }
 
-        applyReceiptToForm(result.receipt);
-        setStatus(t("読み取り結果を反映しました。内容を確認してください。"));
+        applyReceiptToForm(result.receipt, resized.dataUrl);
+        setStatus(t("読み取り結果を反映しました。内容を確認してください。")
+            + (typeof result.remaining === "number" ? t("（今日はあと{n}回）", { n: result.remaining }) : ""));
         playCoin();
         vibrate(20);
     } catch (e) {
@@ -2227,7 +2477,7 @@ async function handleReceiptFile(file) {
     }
 }
 
-function applyReceiptToForm(receipt) {
+function applyReceiptToForm(receipt, dataUrl) {
     const r = normalizeReceipt(receipt);
 
     if (r.total > 0) {
@@ -2239,24 +2489,26 @@ function applyReceiptToForm(receipt) {
     const memoEl = document.getElementById("expense-memo");
     if (memoEl && r.store && !memoEl.value.trim()) memoEl.value = r.store;
 
+    // レシートの日付（来月以降は入れない）
     if (r.date) {
-        const now = new Date();
-        const pad = (n) => String(n).padStart(2, "0");
-        const parsed = parseDatetimeLocalValue(`${r.date}T${pad(now.getHours())}:${pad(now.getMinutes())}`);
-        if (parsed && parsed.getTime() <= Date.now()) {
+        const parsed = parseDateInputValue(r.date);
+        if (parsed && localMonthKey(parsed) <= getCurrentMonthKey()) {
             const dtEl = document.getElementById("expense-datetime");
-            if (dtEl) dtEl.value = toDatetimeLocalValue(parsed);
+            if (dtEl) dtEl.value = toDateInputValue(parsed);
         }
     }
 
-    // カテゴリは、いちばん金額の大きい品目に合わせる
+    // 品目（明細）を入力欄に並べる。カテゴリは品目から自動で当てはめる
     const items = assignCategoriesToItems(r.items, appData.categories, null);
-    const top = items.filter(it => it.categoryId).sort((a, b) => (Number(b.price) || 0) - (Number(a.price) || 0))[0];
-    const categoryEl = document.getElementById("expense-category");
-    if (categoryEl && top && top.categoryId) categoryEl.value = top.categoryId;
+    renderItemsEditor(items);
 
-    // 画像は保存しない（読み取りにだけ使う）。記録の出どころだけ残す。
-    pendingReceipt = { dataUrl: null, receipt: r };
+    const categoryEl = document.getElementById("expense-category");
+    if (categoryEl && items.length > 0 && items[0].categoryId) {
+        categoryEl.value = items[0].categoryId;
+    }
+
+    pendingReceipt = { dataUrl: dataUrl, receipt: r };
+    renderReceiptPreview(dataUrl, r);
     validateExpenseInput();
 }
 
@@ -2270,9 +2522,35 @@ function renderReceiptPreview(dataUrl, receipt) {
 
     if (warnEl) {
         const check = validateReceipt(receipt);
-        warnEl.innerHTML = check.warnings.length > 0
-            ? check.warnings.map(w => `<p class="receipt-warning">${escapeHtml(w)}</p>`).join("")
-            : `<p class="receipt-ok">品目の合計とレシートの合計が一致しました</p>`;
+        let html = check.warnings.length > 0
+            ? check.warnings.map((w, i) => {
+                const cls = check.mismatch && i === 0
+                    ? "receipt-warning receipt-warning-mismatch"
+                    : "receipt-warning";
+                return `<p class="${cls}">${escapeHtml(w)}</p>`;
+            }).join("")
+            : `<p class="receipt-ok">${escapeHtml(t("品目の合計とレシートの合計が一致しました"))}</p>`;
+
+        if (check.mismatch) {
+            html += `
+                <div class="receipt-mismatch-gate" id="receipt-mismatch-gate">
+                    <p class="receipt-mismatch-hint">${escapeHtml(t("黄色で示した行の金額を確認してください。"))}</p>
+                    <label class="receipt-mismatch-label">
+                        <input type="checkbox" id="receipt-mismatch-check">
+                        <span>${escapeHtml(t("明細と合計が一致しないことを確認しました"))}</span>
+                    </label>
+                </div>`;
+        }
+        warnEl.innerHTML = html;
+
+        const checkbox = document.getElementById("receipt-mismatch-check");
+        if (checkbox) {
+            checkbox.addEventListener("change", () => {
+                receiptMismatchConfirmed = !!checkbox.checked;
+                validateExpenseInput();
+            });
+        }
+        refreshReceiptMismatchState();
     }
 }
 
@@ -2511,9 +2789,9 @@ function renderAffection() {
 }
 
 function addAffection(points) {
-    if (!roomData) return;
+    if (!roomData) return 0;
     const before = roomData.affection || 0;
-    if (before >= AFFECTION_MAX) return;
+    if (before >= AFFECTION_MAX) return 0;
     roomData.affection = Math.min(AFFECTION_MAX, before + (points || 1));
     let unlocked = false;
     if (roomData.affection >= AFFECTION_MAX && !roomData.ownedPets.includes("special")) {
@@ -2530,15 +2808,9 @@ function addAffection(points) {
             ], null, "OK");
         }, 700);
     }
+    return roomData.affection - before;
 }
 const TOY_ITEM_IDS = ["nezumi_karakuri", "toy_car_red", "wool_red", "toy_car", "toy_ball", "neko_toy"];
-
-const PET_CHAT = {
-    idle: ["ゆとり、ある？", "今日も一緒にがんばろう", "おかえり！今日もおつかれさま", "記録できてえらい", "小さな節約も未来の余裕につながる"],
-    under: ["まだ予算に余裕がある", "この調子、いい感じ", "目標に向かってコツコツいこう", "無理しない節約がいちばん"],
-    warn: ["そろそろ予算が心配", "使いすぎに気をつけよう", "ちょっとだけブレーキかけよう", "目標を思い出して、今日はゆっくり考えてから買おう"],
-    over: ["予算オーバーだ", "いったん深呼吸して、次の記録から整えていこう", "大丈夫、ここから立て直せばいい"]
-};
 
 let roomDragMoved = false;
 
@@ -2843,8 +3115,7 @@ function setPetState(state, options) {
 }
 
 function onPetStateChanged(state) {
-    if (["sleep", "happy", "sad", "petted"].indexOf(state) !== -1) return;
-    if (Math.random() < 0.18) petSay(pickPetLine(getCurrentBudgetRatioOrNull()));
+    // ペットは話さない（動きだけ）
 }
 
 function petInterrupt(state, options) {
@@ -2895,8 +3166,6 @@ function startPetLifeLoops() {
 
     petTickerHandle = setInterval(petTick, 1000);
     document.addEventListener("visibilitychange", onPetVisibilityChange);
-
-    scheduleNextPetComment();
 }
 
 function onPetVisibilityChange() {
@@ -2941,7 +3210,6 @@ function petStroke() {
     if (!roomData.pet) return;
     if (isSleepingState(petState)) {
         setPetState("petted", { silent: true });
-        petSay(getPetLine("idle", "ん…むにゃ"));
         return;
     }
     setPetState("petted", { silent: true });
@@ -2951,7 +3219,6 @@ function petWakeUp() {
     if (!roomData.pet) return false;
     if (!isSleepingState(petState)) return false;
     setPetState("stretch", { silent: true });
-    petSay(getPetLine("idle", "ふぁ…おきた"));
     return true;
 }
 
@@ -3248,85 +3515,8 @@ function randomPick(arr) {
     return arr[Math.floor(Math.random() * arr.length)];
 }
 
-function pickPetLine(ratio) {
-    let line;
-    if (ratio === null) line = randomPick(PET_CHAT.idle);
-    else if (ratio >= 1) line = randomPick(PET_CHAT.over);
-    else if (ratio > 0.8) line = randomPick(PET_CHAT.warn);
-    else line = randomPick(PET_CHAT.under);
-    return getPetLine("idle", line);
-}
-
-// タップしたときのセリフ：今月の予算の「余裕」（使用率と残額）で変わる
-let lastTapLine = "";
-function petTapLine() {
-    const monthKey = getCurrentMonthKey();
-    const budget = appData.budget[monthKey] || 0;
-    let pool;
-    if (budget <= 0) {
-        pool = ["まず今月の予算を決めてみよう", "予算を決めると、余裕を教えてあげられるよ", "上の えんぴつ から予算を入れてね"];
-    } else {
-        const spent = expensesOfMonth(monthKey).reduce((sum, e) => sum + e.amount, 0);
-        const ratio = spent / budget;
-        const yen = Math.abs(budget - spent).toLocaleString();
-        if (ratio >= 1) {
-            pool = [`${yen}円オーバーしちゃった。ここから立て直そう`, "いったん深呼吸。次の記録から整えよう", `予算を${yen}円こえてる。無理せずゆっくりね`];
-        } else if (ratio > 0.8) {
-            pool = [`残りは${yen}円。ちょっと慎重にいこう`, `あと${yen}円。買う前にひと呼吸しよう`, "そろそろ予算が心配。今日は我慢できるかな"];
-        } else if (ratio >= 0.5) {
-            pool = [`残りは${yen}円。いいペース`, `あと${yen}円。この調子でいこう`, "半分は使ったね。後半もコツコツ"];
-        } else {
-            pool = [`まだ${yen}円も余裕がある`, "余裕たっぷり。いい感じ", `残り${yen}円。心にも余裕があるね`];
-        }
-    }
-    const choices = pool.filter(t => t !== lastTapLine);
-    const line = randomPick(choices.length ? choices : pool);
-    lastTapLine = line;
-    return getPetLine("idle", line);
-}
-
-function getPetGobi() { return (PET_CATALOG[roomData.pet?.type] || PET_CATALOG.neko).gobi; }
-function getPetLine(kind, text) {
-    const clean = String(text || "").replace(/(にゃ～|にゃ|ぴょん|わん|ちゅー|もふ)[！!。．]?$/u, "");
-    return `${clean}${getPetGobi()}`;
-}
-function petSay(text) {
-    if (!text) return;
-    const box = document.getElementById("room-dialogue-box");
-    const textEl = document.getElementById("room-dialogue-text");
-    if (!box || !textEl) return;
-    textEl.textContent = text;
-    box.classList.add("show");
-    clearTimeout(box._hideTimer);
-    box._hideTimer = setTimeout(() => box.classList.remove("show"), 4200);
-}
-
-function getTimeGreeting() {
-    const h = new Date().getHours();
-    if (h < 5) return getPetLine("idle", "遅い時間だね。もう寝よう？");
-    if (h < 11) return getPetLine("idle", "おはよう！今日もゆとり、ある？");
-    if (h < 18) return getPetLine("idle", "こんにちは！記録、進んでる？");
-    return getPetLine("idle", "こんばんは！おつかれさま");
-}
-
 function localDateKeyOf(d) {
     return localDateKey(d);
-}
-
-function getRecordingStreak() {
-    const days = new Set();
-    activeExpenses().forEach(e => {
-        const d = new Date(e.datetime);
-        if (!isNaN(d.getTime())) days.add(localDateKeyOf(d));
-    });
-    let streak = 0;
-    const cur = new Date();
-    if (!days.has(localDateKeyOf(cur))) cur.setDate(cur.getDate() - 1);
-    while (days.has(localDateKeyOf(cur))) {
-        streak++;
-        cur.setDate(cur.getDate() - 1);
-    }
-    return streak;
 }
 
 function checkAiEndpoint(settings) {
@@ -3334,16 +3524,6 @@ function checkAiEndpoint(settings) {
     const endpoint = String(settings.endpoint || "").trim();
     const isLocal = /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?(\/|$)/i.test(endpoint);
     return (/^https:\/\//i.test(endpoint) || isLocal) ? "" : "エンドポイントは https:// で指定してください（localhost を除く）。";
-}
-
-function scheduleNextPetComment() {
-    const delayMs = randomBetween(30000, 60000);
-    setTimeout(() => {
-        if (!petIsAsleep && roomData.pet) {
-            petSay(pickPetLine(getCurrentBudgetRatioOrNull()));
-        }
-        scheduleNextPetComment();
-    }, delayMs);
 }
 
 function setupRoomDragToScroll() {
@@ -3394,15 +3574,6 @@ function initRoomSystem() {
     centerRoomPreviewOnPet();
     preloadPetSleepGif();
     startPetLifeLoops();
-
-    if (roomData.pet && !petIsAsleep) {
-        setTimeout(() => {
-            const streak = getRecordingStreak();
-            let greet = getTimeGreeting();
-            if (streak >= 2) greet += `（${streak}日連続記録中！）`;
-            petSay(greet);
-        }, 500);
-    }
 }
 
 // ==========================================
@@ -3440,7 +3611,6 @@ function confirmPetName() {
     saveRoomData();
     document.getElementById("modal-pet-name")?.classList.remove("open");
     renderRoomPreview(); centerRoomPreviewOnPet(); preloadPetSleepGif();
-    petSay(getPetLine("idle", `${name}、今日からよろしく`));
     maybeShowDailyLoginBonus();
     if (typeof startOnboarding === "function") startOnboarding(false);
 }
@@ -3592,7 +3762,6 @@ function createPetElement(interactive, container) {
 
             triggerPetHop();
             spawnPetReaction("favorite");
-            petSay(petTapLine());
             vibrate(15);
         });
     }
@@ -3994,6 +4163,28 @@ function setupRoomEventListeners() {
 
     // ガチャ／ショップは編集画面の右上アイコンからも開ける
     document.getElementById("input-receipt-image")?.addEventListener("change", (e) => handleReceiptFile(e.target.files && e.target.files[0]));
+
+    // 品目（明細）欄: 追加・削除・編集・合計を金額へ
+    document.getElementById("btn-add-item")?.addEventListener("click", () => addItemRow());
+    const itemListEl = document.getElementById("expense-items-list");
+    if (itemListEl) {
+        itemListEl.addEventListener("click", (e) => {
+            const removeBtn = e.target.closest("[data-item-remove]");
+            if (!removeBtn) return;
+            const row = removeBtn.closest(".item-row");
+            if (row) row.remove();
+            updateItemsSummary();
+        });
+        itemListEl.addEventListener("input", updateItemsSummary);
+    }
+    document.getElementById("btn-apply-items-total")?.addEventListener("click", () => {
+        const total = sumItemPrices();
+        const amountEl = document.getElementById("expense-amount");
+        if (total > 0 && amountEl) {
+            amountEl.value = total;
+            refreshReceiptMismatchState();
+        }
+    });
     document.getElementById("btn-editor-gacha")?.addEventListener("click", () => openGachaModal());
     document.getElementById("btn-editor-shop")?.addEventListener("click", () => openShop());
 
@@ -4715,64 +4906,84 @@ const DEFAULT_OCR_SETTINGS = {
     endpoint: ""
 };
 
-// ---- 無料のレシート読み取り（サーバー経由・1日1回まで） ----
-// worker/receipt-proxy.js を Cloudflare Workers などに置いたら、その URL をここに入れる。
-// 空のままだと「準備中」と表示される（自分の API キーがある人は従来どおり使える）。
-const RECEIPT_PROXY_URL = "";
+// ---- サーバー経由の読み取り（ユーザーは APIキー不要）----------------------------
+// 公開するときは、Supabase Edge Function の URL と publishable / anon key を入れる。
+// キーはサーバー側の秘密情報に置く。ここ（アプリのコード）には絶対に書かない。
+const SUPABASE_BASE_URL = "https://kdcxycqmkftcgnfjvdwz.supabase.co";
+const OCR_SERVER_URL = SUPABASE_BASE_URL + "/functions/v1/scan-receipt";
+const OCR_SERVER_ANON_KEY = "sb_publishable_7TdvqziSh_1XleGqwYnF5g_LslTFS8x";
 const DEVICE_ID_KEY = "yoyu_aru_device_id";
-const FREE_OCR_DAY_KEY = "yoyu_aru_free_ocr_day";
+
+function supabaseFunctionHeaders() {
+    const headers = { "Content-Type": "application/json" };
+    if (OCR_SERVER_ANON_KEY) headers["apikey"] = OCR_SERVER_ANON_KEY;
+    // 旧 anon JWT のときだけ Bearer を付ける。publishable key は apikey で送る。
+    if (OCR_SERVER_ANON_KEY && /^eyJ/.test(OCR_SERVER_ANON_KEY)) {
+        headers["Authorization"] = "Bearer " + OCR_SERVER_ANON_KEY;
+    }
+    return headers;
+}
+
+let ephemeralDeviceId = "";
 
 function getDeviceId() {
     try {
         let id = localStorage.getItem(DEVICE_ID_KEY);
-        if (!id) {
-            id = (window.crypto && crypto.randomUUID) ? crypto.randomUUID() : `d${Date.now()}${Math.random().toString(36).slice(2)}`;
+        if (!id || id.length < 16) {
+            id = (window.crypto && crypto.randomUUID) ? crypto.randomUUID()
+                : "d" + Date.now().toString(36) + Math.random().toString(36).slice(2, 12);
             localStorage.setItem(DEVICE_ID_KEY, id);
         }
         return id;
-    } catch (e) { return "anonymous"; }
+    } catch (e) {
+        if (!ephemeralDeviceId) {
+            ephemeralDeviceId = (window.crypto && crypto.randomUUID) ? crypto.randomUUID()
+                : "d" + Date.now().toString(36) + Math.random().toString(36).slice(2, 12);
+        }
+        return ephemeralDeviceId;
+    }
 }
 
-function jstDateKey() {   // サーバーと同じ「日本時間の日付」で1日を数える
-    return new Date(Date.now() + 9 * 3600 * 1000).toISOString().slice(0, 10);
+function isReceiptScanAvailable() {
+    return !!OCR_SERVER_URL || isOcrConfigured();
 }
 
-function freeOcrUsedToday() {
-    try { return localStorage.getItem(FREE_OCR_DAY_KEY) === jstDateKey(); } catch (e) { return false; }
-}
-
-async function recognizeReceiptViaProxy(dataUrl) {
-    if (!RECEIPT_PROXY_URL) return { ok: false, httpOk: false, error: t("無料の読み取りは、いま準備中です。手入力をお使いください。") };
-    if (freeOcrUsedToday()) return { ok: false, httpOk: false, error: t("今日の無料読み取りは使い切りました。明日また使えます。") };
-
+async function recognizeReceiptViaServer(dataUrl) {
+    const base64 = String(dataUrl).split(",")[1] || "";
     const controller = typeof AbortController === "function" ? new AbortController() : null;
-    const timer = controller ? setTimeout(() => controller.abort(), 30000) : null;
+    const timer = controller ? setTimeout(() => controller.abort(), 25000) : null;
     let res;
     try {
-        res = await fetch(RECEIPT_PROXY_URL, {
+        const headers = supabaseFunctionHeaders();
+        res = await fetch(OCR_SERVER_URL, {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ image: String(dataUrl).split(",")[1] || "", deviceId: getDeviceId() }),
+            headers: headers,
+            body: JSON.stringify({ image: base64, mime: "image/jpeg", device: getDeviceId() }),
             signal: controller ? controller.signal : undefined
         });
     } catch (e) {
-        return { ok: false, httpOk: false, error: (e && e.name === "AbortError")
+        const aborted = e && e.name === "AbortError";
+        return { ok: false, httpOk: false, error: aborted
             ? t("読み取りがタイムアウトしました。通信環境を確認して、もう一度試してください。")
             : t("通信できませんでした。オフラインか、接続が制限されている可能性があります。") };
     } finally {
-        if (timer) clearTimeout(timer);
+        if (controller) clearTimeout(timer);
     }
+
+    let json = null;
+    try { json = await res.json(); } catch (e) { json = null; }
+
     if (res.status === 429) {
-        try { localStorage.setItem(FREE_OCR_DAY_KEY, jstDateKey()); } catch (e) { /* 保存できなくてもサーバー側で制限される */ }
-        return { ok: false, httpOk: false, error: t("今日の無料読み取りは使い切りました。明日また使えます。") };
+        const msg = (json && json.error === "global_limit")
+            ? t("今日は読み取りの利用が多く、いったん受付を終了しました。明日また試すか、手入力してください。")
+            : t("今日の読み取り回数の上限に達しました。明日また使えます。");
+        return { ok: false, httpOk: true, error: msg, limited: true, remaining: 0 };
     }
-    if (!res.ok) return { ok: false, httpOk: false, error: describeHttpError(res.status) };
-    let json;
-    try { json = await res.json(); } catch (e) {
-        return { ok: false, httpOk: true, error: t("応答を解釈できませんでした。") };
+    if (!res.ok || !json) {
+        return { ok: false, httpOk: false, error: t("読み取りサービスに接続できませんでした。時間をおいて試してください。") };
     }
-    try { localStorage.setItem(FREE_OCR_DAY_KEY, jstDateKey()); } catch (e) { /* 同上 */ }
-    return Object.assign({ httpOk: true }, parseReceiptResponse(String(json.text || "")));
+    const parsed = parseReceiptResponse(json.text);
+    return Object.assign({ httpOk: true, remaining: (typeof json.remaining === "number" ? json.remaining : null) }, parsed);
 }
 
 function getOcrSettings() {
@@ -4918,27 +5129,28 @@ function validateReceipt(receipt) {
     const r = normalizeReceipt(receipt);
     const itemSum = r.items.reduce((s, it) => s + it.price * (it.qty || 1), 0);
     const warnings = [];
+    let mismatch = false;
 
     if (r.total > 0 && r.items.length > 0) {
         const diff = itemSum - r.total;
         if (Math.abs(diff) > 2) {
-            warnings.push(
-                `品目の合計（${itemSum.toLocaleString()}円）とレシートの合計（${r.total.toLocaleString()}円）が `
-                + `${Math.abs(diff).toLocaleString()}円 違います。読み取り漏れの可能性があります。`
-            );
+            mismatch = true;
+            warnings.push(t("品目の合計（{a}円）とレシートの合計（{b}円）が {d}円 違います。読み取り漏れの可能性があります。", {
+                a: itemSum.toLocaleString(), b: r.total.toLocaleString(), d: Math.abs(diff).toLocaleString()
+            }));
         }
     }
     if (r.total <= 0) {
-        warnings.push("合計金額が読み取れていません。金額を確認してください。");
+        warnings.push(t("合計金額が読み取れていません。金額を確認してください。"));
     }
     if (r.items.length === 0) {
-        warnings.push("品目が読み取れていません。合計金額だけが記録されます。");
+        warnings.push(t("品目が読み取れていません。合計金額だけが記録されます。"));
     }
     if (r.tax8 > 0 && r.tax10 > 0) {
-        warnings.push("軽減税率（8%）と10%が混在しています。品目の税率を確認してください。");
+        warnings.push(t("軽減税率（8%）と10%が混在しています。品目の税率を確認してください。"));
     }
 
-    return { itemSum, total: r.total, diff: itemSum - r.total, warnings };
+    return { itemSum, total: r.total, diff: itemSum - r.total, mismatch, warnings };
 }
 
 const CATEGORY_KEYWORDS = {
@@ -5183,7 +5395,11 @@ function extractResponseText(provider, json) {
 
 async function recognizeReceipt(dataUrl, settings) {
     const s = settings || getOcrSettings();
-    if (!s.apiKey) return recognizeReceiptViaProxy(dataUrl);
+    // 自分のキーを入れている人はこれまでどおり直接送る。入れていなければサーバー経由（キー不要）
+    if (!s.apiKey && OCR_SERVER_URL) return recognizeReceiptViaServer(dataUrl);
+    if (!s.apiKey) {
+        return { ok: false, httpOk: false, error: t("APIキーが設定されていません。") };
+    }
 
     // カスタム先は https のみ許可（http だと API キーが平文で流れるため）
     const endpointError = checkAiEndpoint(s);
@@ -5534,7 +5750,6 @@ function equipPet(type, newName) {
     renderRoomPreview();
     centerRoomPreviewOnPet();
     preloadPetSleepGif();
-    petSay(getPetLine("idle", `${name}だよ、よろしく`));
     return true;
 }
 
@@ -5543,7 +5758,6 @@ function equipMap(id) {
     roomData.mapId = id;
     saveRoomData();
     applyRoomMap();
-    petSay(getPetLine("idle", `${MAP_CATALOG[id].label}にお引っこし`));
     return true;
 }
 

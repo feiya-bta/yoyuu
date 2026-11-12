@@ -61,9 +61,6 @@
                         <span class="affection-bar"><span class="affection-bar-fill" id="affection-bar-fill"></span></span>
                         <span class="affection-num"><span id="affection-value">0</span>/100</span>
                     </div>
-                    <div class="room-dialogue-box" id="room-dialogue-box">
-                        <p id="room-dialogue-text"></p>
-                    </div>
                     <div class="room-scroll-wrapper">
                         <div class="room-scene" id="room-scene-preview"></div>
                     </div>
@@ -216,8 +213,12 @@
                             <span>レシートから自動入力</span>
                         </label>
                         <input type="file" id="input-receipt-image" accept="image/*" hidden>
-                        <p class="field-hint receipt-note">APIキーなしで1日1回まで無料。画像は読み取りだけに使い、保存しません。</p>
+                        <p class="field-hint receipt-note">APIキーは不要です。1日に読み取れる回数には上限があります。読み取った画像は、この端末の中にだけ保存されます。</p>
                         <p class="field-hint receipt-status" id="receipt-status" role="status" aria-live="polite"></p>
+                    </div>
+                    <div class="receipt-preview" id="receipt-preview" style="display:none;">
+                        <img id="receipt-preview-img" alt="読み取りしたレシート">
+                        <div class="receipt-warnings" id="receipt-warnings"></div>
                     </div>
 
                     <div class="form-group">
@@ -235,12 +236,27 @@
                         <input type="text" id="expense-memo" placeholder="例：週末のまとめ買い" maxlength="60">
                     </div>
                     <div class="form-group">
-                        <label>日時</label>
-                        <input type="datetime-local" id="expense-datetime" class="datetime-input">
+                        <label>品目（明細・任意）</label>
+                        <div class="items-editor">
+                            <div class="items-list" id="expense-items-list"></div>
+                            <div class="items-actions">
+                                <button type="button" class="secondary-button" id="btn-add-item">
+                                    <span class="material-icons-round">add</span>
+                                    品目を追加
+                                </button>
+                                <button type="button" class="text-cancel-button" id="btn-apply-items-total">合計を金額に入れる</button>
+                            </div>
+                            <p class="items-summary" id="items-summary"></p>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>日付</label>
+                        <input type="date" id="expense-datetime" class="datetime-input">
                     </div>
                 </div>
                 <div class="modal-footer">
                     <button class="primary-button" id="btn-save-expense" disabled>記録する</button>
+                    <button type="button" class="expense-delete-button" id="btn-delete-expense" hidden>この支出を削除</button>
                 </div>
             </div>
         </div>
@@ -410,7 +426,6 @@
                     <div class="petname-icon-wrap">
                         <img id="petname-preview-img" src="assets/neko_awake.png" alt="ペット">
                     </div>
-                    <span class="petname-kicker">YOUR LITTLE BUDDY</span>
                     <h3 id="petname-title">ねこに名前をつけよう</h3>
                     <p>これから毎日、家計管理を応援してくれるよ。</p>
                 </div>
