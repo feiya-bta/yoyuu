@@ -73,7 +73,6 @@
         "振動（対応する端末のみ）": ["Vibration (supported devices only)", "振动（仅支持的设备）", "Rung (chỉ thiết bị hỗ trợ)", "振動（僅支援的裝置）"],
         "使い方をもう一度見る": ["View the guide again", "再看一遍使用方法", "Xem lại hướng dẫn", "再看一遍使用方法"],
         "バックアップ（CSV）": ["Backup (CSV)", "备份（CSV）", "Sao lưu (CSV)", "備份（CSV）"],
-        "支出・予算・カテゴリ・貯金プラン・マイルーム（ポイント、ペット、家具、ガチャ）まで、すべてを1つのCSVにまとめて書き出します。読み込みでは、このCSVのほか、銀行・カード明細のCSVも自動で判別します。（レシートの写真とAPIキーは含まれません）": ["Exports everything — expenses, budgets, categories, savings plan and My Room (points, pets, furniture, gacha) — into one CSV. When importing, bank and card statement CSVs are detected automatically too. (Receipt photos and API keys are not included.)", "将支出、预算、分类、储蓄计划和我的房间（积分、宠物、家具、扭蛋）全部导出为一个CSV。导入时也会自动识别银行和信用卡账单的CSV。（不包含小票照片和API密钥）", "Xuất toàn bộ chi tiêu, ngân sách, danh mục, kế hoạch tiết kiệm và phòng của bạn (điểm, thú cưng, đồ nội thất, gacha) thành một CSV. Khi nhập, CSV sao kê ngân hàng/thẻ cũng được tự nhận diện. (Không gồm ảnh hóa đơn và khóa API)", "將支出、預算、分類、儲蓄計劃和我的房間（積分、寵物、傢俱、扭蛋）全部匯出為一個CSV。匯入時也會自動識別銀行和信用卡賬單的CSV。（不包含小票照片和API金鑰）"],
         "CSVを書き出す": ["Export CSV", "导出CSV", "Xuất CSV", "匯出CSV"],
         "CSVを読み込む": ["Import CSV", "导入CSV", "Nhập CSV", "匯入CSV"],
         "リセット": ["Reset", "重置", "Đặt lại", "重置"],
@@ -254,7 +253,10 @@
         "品目の合計（{a}円）とレシートの合計（{b}円）が {d}円 違います。読み取り漏れの可能性があります。": ["Item total (¥{a}) differs from the receipt total (¥{b}) by ¥{d}. Something may have been missed.", "品项合计（{a}日元）与小票合计（{b}日元）相差 {d} 日元，可能有漏读。", "Tổng món hàng ({a} yên) khác tổng hóa đơn ({b} yên) {d} yên. Có thể đã đọc sót.", "品項合計（{a}日圓）與收據合計（{b}日圓）相差 {d} 日圓，可能有漏讀。"],
         "合計金額が読み取れていません。金額を確認してください。": ["The total couldn't be read. Please check the amount.", "未能识别合计金额。请确认金额。", "Không đọc được tổng tiền. Hãy kiểm tra số tiền.", "未能辨識合計金額。請確認金額。"],
         "品目が読み取れていません。合計金額だけが記録されます。": ["No items could be read. Only the total will be recorded.", "未能识别品项。只会记录合计金额。", "Không đọc được món hàng. Chỉ ghi lại tổng tiền.", "未能辨識品項。只會記錄合計金額。"],
-        "軽減税率（8%）と10%が混在しています。品目の税率を確認してください。": ["Reduced-rate (8%) and 10% items are mixed. Please check each item's tax rate.", "同时有减税税率（8%）和 10%。请确认各品项的税率。", "Có cả thuế suất giảm (8%) và 10%. Hãy kiểm tra thuế suất từng món.", "同時有減稅稅率（8%）與 10%。請確認各品項的稅率。"]
+        "軽減税率（8%）と10%が混在しています。品目の税率を確認してください。": ["Reduced-rate (8%) and 10% items are mixed. Please check each item's tax rate.", "同时有减税税率（8%）和 10%。请确认各品项的税率。", "Có cả thuế suất giảm (8%) và 10%. Hãy kiểm tra thuế suất từng món.", "同時有減稅稅率（8%）與 10%。請確認各品項的稅率。"],
+        "支出・予算・カテゴリ・貯金プラン・マイルーム（ポイント、ペット、家具、ガチャ）まで、すべてを1つのCSVにまとめて書き出します。": ["Exports everything — expenses, budgets, categories, savings plan and My Room (points, pets, furniture, gacha) — into one CSV.", "将支出、预算、分类、储蓄计划和我的房间（积分、宠物、家具、扭蛋）全部导出为一个CSV。", "Xuất toàn bộ chi tiêu, ngân sách, danh mục, kế hoạch tiết kiệm và phòng của bạn (điểm, thú cưng, đồ nội thất, gacha) thành một CSV.", "將支出、預算、分類、儲蓄計劃和我的房間（積分、寵物、傢俱、扭蛋）全部匯出為一個CSV。"],
+        "{m}のデータをリセットしますか？": ["Reset the data for {m}?", "要重置{m}的数据吗？", "Đặt lại dữ liệu {m}?", "要重置{m}的資料嗎？"],
+        "{m}の支出と予算がすべて消えます": ["All spending and the budget for {m} will be erased", "{m}的支出和预算将全部清除", "Toàn bộ chi tiêu và ngân sách {m} sẽ bị xóa", "{m}的支出和預算將全部清除"]
     };
     const MONTHS_EN = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
     const IDX = { en: 0, zh: 1, vi: 2, "zh-TW": 3 };

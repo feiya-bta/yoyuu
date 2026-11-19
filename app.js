@@ -1358,7 +1358,7 @@ function setupEventListeners() {
         renderBackupBanner();
     });
     document.getElementById("btn-replay-onboarding")?.addEventListener("click", () => {
-        document.getElementById("modal-data")?.classList.remove("open");
+        // データ管理の画面は開いたまま、その上に使い方を重ねて表示する
         if (typeof startOnboarding === "function") startOnboarding(true);
     });
     const soundToggle = document.getElementById("pref-sound");
@@ -1526,31 +1526,6 @@ function editExpense(id) {
     if (modal) modal.classList.add("open");
 }
 
-let undoBarTimer = null;
-
-function hideUndoBar() {
-    const bar = document.getElementById("undo-bar");
-    if (bar) bar.classList.remove("show");
-    clearTimeout(undoBarTimer);
-}
-
-function showUndoBar(message, onUndo) {
-    let bar = document.getElementById("undo-bar");
-    if (!bar) {
-        bar = document.createElement("div");
-        bar.id = "undo-bar";
-        bar.className = "undo-bar";
-        bar.innerHTML = '<span class="undo-bar-text"></span><button type="button" class="undo-bar-btn">' + t("元に戻す") + '</button>';
-        document.body.appendChild(bar);
-    }
-    bar.querySelector(".undo-bar-text").textContent = message;
-    const btn = bar.querySelector(".undo-bar-btn");
-    btn.onclick = () => { hideUndoBar(); onUndo(); };
-    bar.classList.add("show");
-    clearTimeout(undoBarTimer);
-    undoBarTimer = setTimeout(hideUndoBar, 6000);
-}
-
 // お金まわりの画面（予算・内訳・記録・グラフ・プラン・バックアップ案内）をまとめて描き直す
 function renderMoneyViews() {
     renderBudgetSummary();
@@ -1582,22 +1557,11 @@ function deleteExpense(id) {
     refreshAfterExpenseChange();
     vibrate(12);
 
-    // 取り消せる間はレシート画像を残し、時間が過ぎてから片付ける
-    const imageId = exp.receiptImageId;
-    const cleanup = setTimeout(() => {
-        if (imageId && exp.deletedAt && typeof deleteReceiptImage === "function") {
-            deleteReceiptImage(imageId).catch(() => {});
-        }
-    }, 6500);
-
-    showUndoBar(t("支出を削除しました"), () => {
-        clearTimeout(cleanup);
-        exp.deletedAt = null;
-        exp.updatedAt = new Date().toISOString();
-        saveData();
-        refreshAfterExpenseChange();
-        playPop();
-    });
+    // 元に戻す機能は無いので、レシート画像もすぐ片付ける
+    if (exp.receiptImageId && typeof deleteReceiptImage === "function") {
+        deleteReceiptImage(exp.receiptImageId).catch(() => {});
+    }
+    playPop();
 }
 
 async function confirmDeleteExpense(id) {
@@ -1606,7 +1570,7 @@ async function confirmDeleteExpense(id) {
         title: t("この支出を削除しますか？"),
         rows: [
             { icon: "delete", text: t("この支出を履歴から削除します。") },
-            { icon: "undo", text: t("削除した直後は、画面下の「元に戻す」で取り消せます。") }
+            { icon: "block", text: t("元に戻せません") }
         ],
         okLabel: t("削除する"),
         cancelLabel: t("キャンセル"),
@@ -2002,10 +1966,21 @@ function importUnifiedCsvText(text) {
     return { addedExpenses, addedCategories, updatedBudgets, roomImported, skippedDuplicates };
 }
 
-function resetCurrentMonthData() {
+async function resetCurrentMonthData() {
     const monthKey = getCurrentMonthKey();
     const label = formatMonthLabel(monthKey);
-    if (!confirm(`${label}の支出と予算をすべて削除します。よろしいですか？`)) return;
+    const ok = await showCenterConfirm({
+        id: "reset-month-confirm",
+        title: t("{m}のデータをリセットしますか？", { m: label }),
+        rows: [
+            { icon: "event_busy", text: t("{m}の支出と予算がすべて消えます", { m: label }) },
+            { icon: "block", text: t("元に戻せません") }
+        ],
+        okLabel: t("リセットする"),
+        cancelLabel: t("キャンセル"),
+        danger: true
+    });
+    if (!ok) return;
 
     const now = new Date().toISOString();
     const imageIds = [];
@@ -3482,9 +3457,7 @@ function getCurrentBudgetRatioOrNull() {
     return spent / budget;
 }
 
-// 予算の80%を超えたらペットの近くに顔文字を出す（100%以上はさらに落ち込んだ顔）
-const MOOD_FACE = { warn: "(；´･ω･)", over: "(；＿；)" };
-
+// 予算が増えてきたときのペットの表情（classだけ切り替える。顔文字は出さない）
 function refreshPetMood() {
     const ratio = getCurrentBudgetRatioOrNull();
     const isOver = ratio !== null && ratio >= 1;
@@ -3493,10 +3466,6 @@ function refreshPetMood() {
     document.querySelectorAll(".pet-item").forEach(el => {
         el.classList.toggle("mood-over", isOver);
         el.classList.toggle("mood-warn", isWarn);
-        const badge = el.querySelector(".mood-badge");
-        if (!badge) return;
-        badge.textContent = isOver ? MOOD_FACE.over : (isWarn ? MOOD_FACE.warn : "");
-        badge.classList.toggle("hidden", !(isOver || isWarn));
     });
 }
 
@@ -3723,7 +3692,6 @@ function createPetElement(interactive, container) {
     el.innerHTML = `
         <img src="${img}" alt="${type}" draggable="false" decoding="async">
         <div class="pet-name-tag${roomData.pet.name ? "" : " hidden"}">${escapeHtml(roomData.pet.name || "")}</div>
-        <div class="mood-badge hidden"></div>
     `;
 
     if (!interactive) {

@@ -719,7 +719,7 @@ html, body {
     display: flex;
     align-items: center;
     gap: 10px;
-    margin: 20px 0 4px 0;
+    margin: 18px 0 0 0;
     color: var(--accent);
     font-family: var(--font-hand);
     font-size: 0.85rem;
@@ -739,8 +739,13 @@ html, body {
     justify-content: space-between;
     align-items: flex-start;
     gap: 12px;
-    padding: 14px 0;
+    padding: 9px 0;
     border-bottom: 1px dashed var(--line-strong);
+}
+
+/* 日付の見出しと、その日の最初の記録を近づける */
+.timeline-date-divider + .card {
+    padding-top: 4px;
 }
 
 .card-info {
