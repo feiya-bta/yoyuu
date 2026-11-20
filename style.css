@@ -3427,3 +3427,12 @@ html[lang="zh-Hant"] * { font-synthesis: none; }   /* Huninn は太字が無い�
 }
 .expense-delete-button[hidden] { display: none; }
 .expense-delete-button:active { background: rgba(163, 76, 61, 0.08); }
+
+
+/* ---- 好感度バッジは、マイルームの一番上のレイヤー ---- */
+/* 部屋の中身（ペット・家具）は専用の重なり順に閉じ込めて、バッジより上に出られないようにする */
+.pet-room-preview .room-scroll-wrapper { isolation: isolate; }
+/* マイルーム全体も専用の重なり順にする。こうしないとバッジの大きな z-index が、
+   メニューやダイアログ（画面全体の重なり順）まで突き抜けてしまう */
+.pet-room-preview { isolation: isolate; }
+.pet-room-preview .affection-badge { z-index: 10000; }

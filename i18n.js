@@ -256,7 +256,15 @@
         "軽減税率（8%）と10%が混在しています。品目の税率を確認してください。": ["Reduced-rate (8%) and 10% items are mixed. Please check each item's tax rate.", "同时有减税税率（8%）和 10%。请确认各品项的税率。", "Có cả thuế suất giảm (8%) và 10%. Hãy kiểm tra thuế suất từng món.", "同時有減稅稅率（8%）與 10%。請確認各品項的稅率。"],
         "支出・予算・カテゴリ・貯金プラン・マイルーム（ポイント、ペット、家具、ガチャ）まで、すべてを1つのCSVにまとめて書き出します。": ["Exports everything — expenses, budgets, categories, savings plan and My Room (points, pets, furniture, gacha) — into one CSV.", "将支出、预算、分类、储蓄计划和我的房间（积分、宠物、家具、扭蛋）全部导出为一个CSV。", "Xuất toàn bộ chi tiêu, ngân sách, danh mục, kế hoạch tiết kiệm và phòng của bạn (điểm, thú cưng, đồ nội thất, gacha) thành một CSV.", "將支出、預算、分類、儲蓄計劃和我的房間（積分、寵物、傢俱、扭蛋）全部匯出為一個CSV。"],
         "{m}のデータをリセットしますか？": ["Reset the data for {m}?", "要重置{m}的数据吗？", "Đặt lại dữ liệu {m}?", "要重置{m}的資料嗎？"],
-        "{m}の支出と予算がすべて消えます": ["All spending and the budget for {m} will be erased", "{m}的支出和预算将全部清除", "Toàn bộ chi tiêu và ngân sách {m} sẽ bị xóa", "{m}的支出和預算將全部清除"]
+        "{m}の支出と予算がすべて消えます": ["All spending and the budget for {m} will be erased", "{m}的支出和预算将全部清除", "Toàn bộ chi tiêu và ngân sách {m} sẽ bị xóa", "{m}的支出和預算將全部清除"],
+        "「{c}」を削除しますか？": ["Delete “{c}”?", "要删除“{c}”吗？", "Xóa “{c}”?", "要刪除“{c}”嗎？"],
+        "記録済みの支出は、残りのカテゴリに移動されます。": ["Recorded expenses will be moved to another category.", "已记录的支出会移到其余分类。", "Các chi tiêu đã ghi sẽ được chuyển sang danh mục còn lại.", "已記錄的支出會移到其餘分類。"],
+        "マイルームも読み込みますか？": ["Import My Room too?", "也要导入我的房间吗？", "Nhập cả phòng của bạn?", "也要匯入我的房間嗎？"],
+        "このCSVにはマイルーム（ポイント・家具・ペット）が含まれています。": ["This CSV includes My Room (points, furniture, pets).", "这个CSV里包含我的房间（积分、家具、宠物）。", "CSV này có cả phòng của bạn (điểm, đồ nội thất, thú cưng).", "這個CSV裡包含我的房間（積分、傢俱、寵物）。"],
+        "いまのマイルームは、CSVの内容に置き換わります。": ["Your current My Room will be replaced with the CSV's contents.", "现在的我的房间将被替换为CSV中的内容。", "Phòng hiện tại sẽ được thay bằng nội dung trong CSV.", "現在的我的房間將被替換為CSV中的內容。"],
+        "同じ月の予算も上書きされます。": ["Budgets for the same month will also be overwritten.", "同月的预算也会被覆盖。", "Ngân sách của cùng tháng cũng sẽ bị ghi đè.", "同月的預算也會被覆蓋。"],
+        "読み込む": ["Import", "导入", "Nhập", "匯入"],
+        "読み込みをキャンセルしました。": ["Import cancelled.", "已取消导入。", "Đã hủy nhập.", "已取消匯入。"]
     };
     const MONTHS_EN = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
     const IDX = { en: 0, zh: 1, vi: 2, "zh-TW": 3 };

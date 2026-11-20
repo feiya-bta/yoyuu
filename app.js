@@ -698,14 +698,25 @@ function startEditCategory(id) {
     openCategoryForm("edit");
 }
 
-function deleteCategoryById(id) {
+async function deleteCategoryById(id) {
     if (appData.categories.length <= 1) {
-        alert("カテゴリは最低1つ必要です。");
+        alert(t("カテゴリは最低1つ必要です。"));
         return;
     }
     const cat = getCategoryById(id);
     if (!cat) return;
-    if (!confirm(`「${cat.name}」を削除しますか？\n記録済みの支出は残りのカテゴリに移動されます。`)) return;
+    const ok = await showCenterConfirm({
+        id: "delete-category-confirm",
+        title: t("「{c}」を削除しますか？", { c: cat.name }),
+        rows: [
+            { icon: "drive_file_move", text: t("記録済みの支出は、残りのカテゴリに移動されます。") },
+            { icon: "block", text: t("元に戻せません") }
+        ],
+        okLabel: t("削除する"),
+        cancelLabel: t("キャンセル"),
+        danger: true
+    });
+    if (!ok) return;
 
     appData.categories = appData.categories.filter(c => String(c.id) !== String(id));
     const fallbackId = appData.categories[0].id;
@@ -1603,7 +1614,7 @@ function importAnyCsvFile(file) {
     const statusEl = document.getElementById("data-import-status");
     const reader = new FileReader();
 
-    reader.onload = (e) => {
+    reader.onload = async (e) => {
         let text;
         try {
             text = decodeCsvBuffer(e.target.result);
@@ -1613,10 +1624,23 @@ function importAnyCsvFile(file) {
 
         const firstLine = String(text).replace(/^\uFEFF/, "").split(/\r?\n/)[0].trim();
         if (firstLine === UNIFIED_CSV_MARKER) {
-            if (/^#\s*ROOM\s*$/im.test(text)
-                && !confirm("このCSVにはマイルーム（ポイント・家具・ペット）が含まれています。\n読み込むと、いまのマイルームはCSVの内容に置き換わります。\n（同じ月の予算も上書きされます）\n続けますか？")) {
-                if (statusEl) statusEl.textContent = "読み込みをキャンセルしました。";
-                return;
+            if (/^#\s*ROOM\s*$/im.test(text)) {
+                const ok = await showCenterConfirm({
+                    id: "import-csv-confirm",
+                    title: t("マイルームも読み込みますか？"),
+                    rows: [
+                        { icon: "pets", text: t("このCSVにはマイルーム（ポイント・家具・ペット）が含まれています。") },
+                        { icon: "sync_alt", text: t("いまのマイルームは、CSVの内容に置き換わります。") },
+                        { icon: "event_repeat", text: t("同じ月の予算も上書きされます。") }
+                    ],
+                    okLabel: t("読み込む"),
+                    cancelLabel: t("キャンセル"),
+                    danger: true
+                });
+                if (!ok) {
+                    if (statusEl) statusEl.textContent = t("読み込みをキャンセルしました。");
+                    return;
+                }
             }
             const result = importUnifiedCsvText(text);
             if (statusEl) {
