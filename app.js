@@ -2705,7 +2705,7 @@ const PET_CATALOG = {
     shiba:   { label: "しばいぬ",   gobi: "わん",   defaultName: "まる" },
     hamster: { label: "ハムスター", gobi: "ちゅー", defaultName: "むぎ" },
     panda:   { label: "パンダ",     gobi: "もふ",   defaultName: "たけ" },
-    special: { label: t("スペシャル"), gobi: "♡",      defaultName: t("スペシャル") }   // 好感度100で仲間になる（ガチャには出ない）
+    special: { label: t("スペシャル"), gobi: "♡",      defaultName: "ルビー" }   // 好感度100で仲間になる（ガチャには出ない）
 };
 
 // 部屋（マップ）。default は最初から持っている部屋。
@@ -2757,7 +2757,8 @@ function roomExtraCsvPairs() {
         ["mapId", roomData.mapId || "default"],
         ["petNames", names],
         ["gachaPulls", (roomData.gacha && roomData.gacha.pulls) || 0],
-        ["affection", roomData.affection || 0]
+        ["affection", roomData.affection || 0],
+        ["nameTickets", roomData.nameTickets || 0]
     ];
 }
 
@@ -2772,6 +2773,7 @@ function applyRoomExtrasFromCsvMap(room, map) {
     });
     room.gacha = { pulls: parseInt(map.gachaPulls, 10) || 0 };
     room.affection = Math.min(AFFECTION_MAX, Math.max(0, parseInt(map.affection, 10) || 0));
+    room.nameTickets = Math.min(99, Math.max(0, parseInt(map.nameTickets, 10) || 0));
 }
 
 const AFFECTION_MAX = 100;
@@ -2787,6 +2789,68 @@ function renderAffection() {
     document.getElementById("affection-badge")?.classList.toggle("is-full", v >= AFFECTION_MAX);
 }
 
+// 「全データをリセット」と同じカード構造で、画像・入力欄つきのダイアログを出す。
+// 返り値：{ ok: true/false, value: 入力された文字 }
+function showCenterForm({ id, title, imgSrc, rows, field, okLabel, cancelLabel, hideCancel, requireValue }) {
+    return new Promise(resolve => {
+        document.getElementById(id)?.remove();
+        const overlay = document.createElement("div");
+        overlay.id = id;
+        overlay.className = "guide-overlay";
+        overlay.setAttribute("role", "dialog");
+        overlay.innerHTML =
+            `<div class="guide-card"><h4 class="guide-title"></h4>` +
+            `<div class="guide-pet"><img alt="" draggable="false"></div>` +
+            `<ul class="guide-list"></ul>` +
+            `<div class="guide-field"><label class="guide-field-label"></label><input type="text" class="guide-input" autocomplete="off" autocapitalize="off" spellcheck="false"></div>` +
+            `<div class="guide-actions"><button type="button" class="primary-button guide-ok"></button>` +
+            `<button type="button" class="guide-cancel"></button></div></div>`;
+        overlay.querySelector(".guide-title").textContent = title;
+
+        const petBox = overlay.querySelector(".guide-pet");
+        if (imgSrc) overlay.querySelector(".guide-pet img").src = imgSrc; else petBox.remove();
+
+        const ul = overlay.querySelector(".guide-list");
+        (rows || []).forEach(r => {
+            const li = document.createElement("li");
+            li.innerHTML = `<span class="material-icons-round"></span><span class="guide-text"></span>`;
+            li.children[0].textContent = r.icon;
+            li.children[1].textContent = r.text;
+            ul.appendChild(li);
+        });
+        if (!(rows && rows.length)) ul.remove();
+
+        const input = overlay.querySelector(".guide-input");
+        overlay.querySelector(".guide-field-label").textContent = (field && field.label) || "";
+        input.maxLength = (field && field.maxLength) || 12;
+        input.placeholder = (field && field.placeholder) || "";
+        input.value = (field && field.value) || "";
+
+        const ok = overlay.querySelector(".guide-ok");
+        ok.textContent = okLabel;
+        const cancelBtn = overlay.querySelector(".guide-cancel");
+        cancelBtn.textContent = cancelLabel || t("キャンセル");
+        if (hideCancel) cancelBtn.remove();
+
+        const done = (v) => { overlay.remove(); resolve(v); };
+        const submit = () => {
+            const value = input.value.trim();
+            if (requireValue && !value) {
+                input.classList.add("is-error");
+                input.focus();
+                return;
+            }
+            done({ ok: true, value });
+        };
+        input.addEventListener("input", () => input.classList.remove("is-error"));
+        input.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); submit(); } });
+        ok.addEventListener("click", submit);
+        cancelBtn.addEventListener("click", () => done({ ok: false, value: "" }));
+        document.body.appendChild(overlay);   // ショップ・ガチャ（body直下）より手前に出すため
+        setTimeout(() => input.focus(), 120);
+    });
+}
+
 // スペシャルペットを仲間にする（100件の記録／確認用コードの両方から使う）
 function unlockSpecialPet(source) {
     if (!roomData) return false;
@@ -2794,25 +2858,28 @@ function unlockSpecialPet(source) {
     if (roomData.ownedPets.includes("special")) return false;
     roomData.ownedPets.push("special");
     saveRoomData();
-    setTimeout(() => showSpecialUnlockNotice(source), source === "code" ? 150 : 700);
+    setTimeout(() => showSpecialUnlockNotice(), source === "code" ? 150 : 700);
     return true;
 }
 
-// 削除やリセットの確認と同じカード。OK だけのお知らせ版。
-function showSpecialUnlockNotice(source) {
-    const rows = [
-        source === "code"
-            ? { icon: "key", text: t("コードが確認されました") }
-            : { icon: "favorite", text: t("好感度が100になりました") },
-        { icon: "pets", text: t("ガチャ → コレクションから、いつでも切りかえられます") }
-    ];
-    return showCenterConfirm({
+// 手に入れたその場で名前をつけるカード（「全データをリセット」と同じ構造）
+async function showSpecialUnlockNotice() {
+    const res = await showCenterForm({
         id: "special-unlock",
-        title: t("スペシャルペットが仲間に！"),
-        rows,
-        okLabel: "OK",
-        hideCancel: true
+        title: t("おめでとうございます！超レアペットをゲットしました！"),
+        imgSrc: PET_AWAKE_IMG.special,
+        field: { label: t("名前をつけよう"), placeholder: t("例：ルビー"), value: "", maxLength: 12 },
+        okLabel: t("この名前にする"),
+        hideCancel: true,
+        requireValue: false
     });
+    const name = ((res && res.value) || "").trim().slice(0, 12) || petDefaultName("special");
+    roomData.petNames = roomData.petNames || {};
+    roomData.petNames.special = name;
+    // すでにスペシャルペットと暮らしているときは、部屋の名札も合わせる
+    if (roomData.pet && roomData.pet.type === "special") roomData.pet.name = name;
+    saveRoomData();
+    renderRoomPreview();
 }
 
 // データ管理の「コード入力」。確認用コードで、すぐにスペシャルペットを仲間にできる。
@@ -2873,6 +2940,7 @@ const DEFAULT_ROOM_DATA = {
     mapId: "default",
     gacha: { pulls: 0 },
     affection: 0,
+    nameTickets: 0,
     mini: null
 };
 
@@ -2913,6 +2981,7 @@ function normalizeRoomData(raw) {
     if (!MAP_CATALOG[d.mapId] || !d.ownedMaps.includes(d.mapId)) d.mapId = "default";
     d.gacha = { pulls: Math.max(0, Math.floor(Number(d.gacha && d.gacha.pulls) || 0)) };
     d.affection = Math.min(AFFECTION_MAX, Math.max(0, Math.floor(Number(d.affection) || 0)));
+    d.nameTickets = Math.min(99, Math.max(0, Math.floor(Number(d.nameTickets) || 0)));
 
     d.placedItems = d.placedItems
         .filter(it => it && typeof it === "object")
@@ -4112,11 +4181,33 @@ function openShop() {
     if (modal) modal.classList.add("open");
 }
 
+const NAME_TICKET_PRICE = 1000;
+const NAME_TICKET_IMG = "assets/nameticket.png";
+
 function renderShopGrid() {
     const grid = document.getElementById("shop-grid");
     const emptyHint = document.getElementById("shop-empty-hint");
     if (!grid) return;
     grid.innerHTML = "";
+
+    // 改名チケット（何度でも買える）
+    const tickets = roomData.nameTickets || 0;
+    const ticketCard = document.createElement("div");
+    ticketCard.className = "shop-card shop-card-ticket";
+    const canBuy = roomData.points >= NAME_TICKET_PRICE;
+    ticketCard.innerHTML = `
+        <div class="shop-card-image"><img src="${NAME_TICKET_IMG}" alt="" draggable="false"></div>
+        <div class="shop-card-label">${escapeHtml(t("改名チケット"))}</div>
+        <div class="shop-card-price">
+            <span class="material-icons-round">toll</span>
+            ${NAME_TICKET_PRICE.toLocaleString()}
+        </div>
+        <button class="shop-buy-btn" ${canBuy ? "" : "disabled"}>${escapeHtml(t("購入"))}</button>
+        ${tickets > 0 ? `<button class="shop-use-btn" type="button">${escapeHtml(t("持っている：{n}枚", { n: tickets }))} ／ ${escapeHtml(t("使う"))}</button>` : ""}
+    `;
+    ticketCard.querySelector(".shop-buy-btn").addEventListener("click", buyNameTicket);
+    ticketCard.querySelector(".shop-use-btn")?.addEventListener("click", () => openRenamePetCard());
+    grid.appendChild(ticketCard);
 
     const available = FURNITURE_CATALOG.filter(f => !roomData.ownedItemIds.includes(f.id));
 
@@ -4141,6 +4232,52 @@ function renderShopGrid() {
         card.querySelector(".shop-buy-btn").addEventListener("click", () => buyItem(item.id));
         grid.appendChild(card);
     });
+}
+
+function buyNameTicket() {
+    if (!roomData.pet) { showToast(t("一緒にいるペットがいません")); return; }
+    if (roomData.points < NAME_TICKET_PRICE) return;
+    roomData.points -= NAME_TICKET_PRICE;
+    roomData.nameTickets = (roomData.nameTickets || 0) + 1;
+    saveRoomData();
+    renderCurrency();
+    renderShopGrid();
+    playCoin();
+    vibrate(25);
+    // 買ったらすぐ、名前を変える画面を開く
+    openRenamePetCard();
+}
+
+// いま一緒にいるペットの名前を変える（改名チケットを1枚使う）
+async function openRenamePetCard() {
+    if (!roomData.pet) { showToast(t("一緒にいるペットがいません")); return false; }
+    if ((roomData.nameTickets || 0) < 1) return false;
+    const type = roomData.pet.type;
+    const res = await showCenterForm({
+        id: "rename-pet",
+        title: t("ペットの名前を変えよう"),
+        imgSrc: PET_AWAKE_IMG[type],
+        rows: [
+            { icon: "confirmation_number", text: t("改名チケットを1枚使います") },
+            { icon: "pets", text: t("いま一緒にいるペットの名前を変えられます") }
+        ],
+        field: { label: t("名前"), placeholder: t("例：もち"), value: roomData.pet.name || "", maxLength: 12 },
+        okLabel: t("名前を変える"),
+        cancelLabel: t("あとで"),
+        requireValue: true
+    });
+    if (!res.ok) return false;
+    const name = res.value.slice(0, 12);
+    roomData.pet.name = name;
+    roomData.petNames = roomData.petNames || {};
+    roomData.petNames[type] = name;
+    roomData.nameTickets = Math.max(0, (roomData.nameTickets || 0) - 1);
+    saveRoomData();
+    renderRoomPreview();
+    if (document.getElementById("modal-shop")?.classList.contains("open")) renderShopGrid();
+    showToast(t("名前を変えました"));
+    playCoin();
+    return true;
 }
 
 function buyItem(itemId) {
@@ -5545,7 +5682,7 @@ function showCenterConfirm({ id, title, rows, okLabel, cancelLabel, danger, hide
         const done = (v) => { overlay.remove(); resolve(v); };
         ok.addEventListener("click", () => done(true));
         cancelBtn.addEventListener("click", () => done(false));
-        (document.querySelector(".app-container") || document.body).appendChild(overlay);
+        document.body.appendChild(overlay);   // ショップ・ガチャ（body直下）より手前に出すため
     });
 }
 
@@ -5572,7 +5709,7 @@ function showCenterGuide(id, title, rows, onClose, okLabel, parent) {
         overlay.remove();
         if (onClose) onClose();
     });
-    (parent || document.querySelector(".app-container") || document.body).appendChild(overlay);
+    (parent || document.body).appendChild(overlay);
 }
 
 function finishOnboarding() {
