@@ -3468,3 +3468,7 @@ html[lang="zh-Hant"] * { font-synthesis: none; }   /* Huninn は太字が無い�
 
 /* 日本語のタイトルが単語の途中で折り返されないように */
 .guide-title { text-wrap: balance; word-break: auto-phrase; }
+
+/* 初回の言語選択（全データをリセットの確認と同じ .guide-overlay 構造） */
+.lang-gate { z-index: 1000; }
+.guide-actions .secondary-button { width: 100%; justify-content: center; padding: 12px 14px; font-size: 0.9rem; }

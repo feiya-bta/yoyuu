@@ -269,18 +269,29 @@
         "例：ぴょん": ["e.g. Pyon", "例：蹦蹦", "VD: Pyon", "例：蹦蹦"],
         "コード入力": ["Enter a code", "输入代码", "Nhập mã", "輸入程式碼"],
         "コード": ["Code", "代码", "Mã", "程式碼"],
-        "使う": ["Apply", "使用", "Dùng", "使用"],
+        "使う": ["Use", "使用", "Dùng", "使用"],
         "コードを入力してください。": ["Please enter a code.", "请输入代码。", "Hãy nhập mã.", "請輸入程式碼。"],
         "コードが正しくありません。": ["That code isn't valid.", "代码不正确。", "Mã không hợp lệ.", "程式碼不正確。"],
         "スペシャルペットを迎えました！": ["The special pet has joined you!", "已迎来特别宠物！", "Đã đón thú cưng đặc biệt!", "已迎來特別寵物！"],
         "スペシャルペットは、すでに仲間です。": ["The special pet is already with you.", "特别宠物已经是你的伙伴了。", "Thú cưng đặc biệt đã ở cùng bạn rồi.", "特別寵物已經是你的夥伴了。"],
-        "コードが確認されました": ["Code verified", "代码已确认", "Đã xác nhận mã", "程式碼已確認"]
+        "コードが確認されました": ["Code verified", "代码已确认", "Đã xác nhận mã", "程式碼已確認"],
+        "おめでとうございます！超レアペットをゲットしました！": ["Congratulations! You got a super rare pet!", "恭喜！你获得了超稀有宠物！", "Chúc mừng! Bạn đã nhận được thú cưng siêu hiếm!", "恭喜！你獲得了超稀有寵物！"],
+        "例：ルビー": ["e.g. Ruby", "例：露比", "VD: Ruby", "例：露比"],
+        "改名チケット": ["Name-change ticket", "改名券", "Vé đổi tên", "改名券"],
+        "ペットの名前を変えよう": ["Change your pet's name", "给宠物改名吧", "Đổi tên thú cưng", "給寵物改名吧"],
+        "改名チケットを1枚使います": ["Uses 1 name-change ticket", "将使用1张改名券", "Dùng 1 vé đổi tên", "將使用1張改名券"],
+        "いま一緒にいるペットの名前を変えられます": ["You can rename the pet that's with you now", "可以更改现在一起生活的宠物的名字", "Bạn có thể đổi tên thú cưng đang ở cùng", "可以更改現在一起生活的寵物的名字"],
+        "名前を変える": ["Change name", "改名", "Đổi tên", "改名"],
+        "名前を変えました": ["Name changed!", "已改名！", "Đã đổi tên!", "已改名！"],
+        "持っている：{n}枚": ["You have {n}", "持有：{n}张", "Đang có: {n}", "持有：{n}張"],
+        "一緒にいるペットがいません": ["There's no pet with you right now", "现在没有一起生活的宠物", "Hiện chưa có thú cưng nào ở cùng", "現在沒有一起生活的寵物"]
     };
     const MONTHS_EN = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
     const IDX = { en: 0, zh: 1, vi: 2, "zh-TW": 3 };
 
     let lang = "ja";
     try { lang = localStorage.getItem(STORE_KEY) || ""; } catch (e) {}
+    const hadSavedLang = LANGS.some(l => l.code === lang);
     if (!LANGS.some(l => l.code === lang)) {
         // 初回は端末の言語に合わせる（対応外は日本語）
         const nav = String(navigator.language || "ja").toLowerCase();
@@ -354,4 +365,31 @@
 
     // HTML は読み込み済み（このスクリプトは </body> 直前）。app.js が描画する前に静的部分を訳しておく。
     applyStatic(document.body);
+
+    // 初回起動：何も始まる前に言語を選んでもらう（「全データをリセット」の確認ウィンドウと同じ構造）
+    if (!hadSavedLang) {
+        const overlay = document.createElement("div");
+        overlay.className = "guide-overlay lang-gate";
+        const card = document.createElement("div");
+        card.className = "guide-card";
+        const title = document.createElement("h4");
+        title.className = "guide-title";
+        title.textContent = "言語 / Language";
+        const actions = document.createElement("div");
+        actions.className = "guide-actions";
+        LANGS.forEach(l => {
+            const b = document.createElement("button");
+            b.type = "button";
+            b.className = "secondary-button";
+            b.textContent = l.label;
+            b.addEventListener("click", () => {
+                try { localStorage.setItem(STORE_KEY, l.code); } catch (e) {}
+                location.reload();
+            });
+            actions.appendChild(b);
+        });
+        card.append(title, actions);
+        overlay.appendChild(card);
+        document.body.appendChild(overlay);
+    }
 })();
