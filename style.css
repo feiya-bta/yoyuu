@@ -438,8 +438,7 @@ html, body {
 }
 .pet-speech.show { opacity: 1; animation: speechPop 0.22s ease-out; }
 .pet-speech::after { content: ""; position: absolute; left: 50%; bottom: -6px; transform: translateX(-50%); border: 7px solid transparent; border-top-color: #fff; border-bottom: none; }
-.pet-name-tag { position: absolute; left: 50%; bottom: calc(100% + 2px); transform: translate(-50%, -34px) scaleX(var(--flip, 1)) scale(calc(1 / var(--scale, 1))); transform-origin: center bottom; background: rgba(25,27,29,0.82); color: #fff; border-radius: 10px; padding: 3px 7px; font-size: 0.54rem; line-height: 1; white-space: nowrap; pointer-events: none; z-index: 9998; }
-.pet-name-tag.hidden { display: none; }
+.pet-name-tag { position: absolute; left: 50%; bottom: calc(100% + 2px); transform: translate(-50%, -2px) scaleX(var(--flip, 1)) scale(calc(1 / var(--scale, 1))); transform-origin: center bottom; background: rgba(25,27,29,0.82); color: #fff; border-radius: 10px; padding: 3px 7px; font-size: 0.54rem; line-height: 1; white-space: nowrap; pointer-events: none; z-index: 9998; }.pet-name-tag.hidden { display: none; }
 @keyframes speechPop { from { opacity: 0; transform: translate(-50%, 8px) scale(calc(1 / var(--scale, 1))); } to { opacity: 1; transform: translate(-50%, 0) scale(calc(1 / var(--scale, 1))); } }
 .pet-selection-hint { text-align: center; color: var(--muted); font-size: 0.65rem; margin-top: 14px; }
 .petname-content { max-width: 430px; }
@@ -3447,3 +3446,25 @@ html[lang="zh-Hant"] * { font-synthesis: none; }   /* Huninn は太字が無い�
 .code-input { flex: 1 1 auto; min-width: 0; padding: 10px 12px; border: 1px solid var(--line-strong); border-radius: var(--radius-soft); background: var(--surface); color: var(--ink); font-size: 0.9rem; }
 .code-input:focus { outline: none; border-color: var(--accent); }
 @media (pointer: coarse) { .code-input { font-size: 16px; } }
+
+/* ---- 画像・入力欄つきのカード（スペシャルペット／改名） ---- */
+.guide-pet { margin: 0 auto 12px; width: 112px; height: 112px; display: flex; align-items: center; justify-content: center; }
+.guide-pet img { max-width: 100%; max-height: 100%; object-fit: contain; }
+.guide-field { margin: 0 0 16px; text-align: left; }
+.guide-field-label { display: block; margin-bottom: 6px; font-size: 0.78rem; color: var(--muted); }
+.guide-field-label:empty { display: none; }
+.guide-input {
+    width: 100%; padding: 10px 12px; border: 1px solid var(--line-strong); border-radius: var(--radius-soft);
+    background: #fff; color: var(--ink); font-size: 0.95rem; text-align: center; outline: none;
+}
+.guide-input:focus { border-color: var(--accent); }
+.guide-input.is-error { border-color: var(--danger); }
+@media (pointer: coarse) { .guide-input { font-size: 16px; } }
+.shop-card-label { font-size: 0.78rem; color: var(--ink); text-align: center; margin: 2px 0 4px; }
+.shop-use-btn {
+    margin-top: 6px; width: 100%; padding: 7px 6px; border: 1px solid var(--accent); border-radius: var(--radius-soft);
+    background: none; color: var(--accent); font-size: 0.72rem; cursor: pointer;
+}
+
+/* 日本語のタイトルが単語の途中で折り返されないように */
+.guide-title { text-wrap: balance; word-break: auto-phrase; }
