@@ -264,7 +264,17 @@
         "いまのマイルームは、CSVの内容に置き換わります。": ["Your current My Room will be replaced with the CSV's contents.", "现在的我的房间将被替换为CSV中的内容。", "Phòng hiện tại sẽ được thay bằng nội dung trong CSV.", "現在的我的房間將被替換為CSV中的內容。"],
         "同じ月の予算も上書きされます。": ["Budgets for the same month will also be overwritten.", "同月的预算也会被覆盖。", "Ngân sách của cùng tháng cũng sẽ bị ghi đè.", "同月的預算也會被覆蓋。"],
         "読み込む": ["Import", "导入", "Nhập", "匯入"],
-        "読み込みをキャンセルしました。": ["Import cancelled.", "已取消导入。", "Đã hủy nhập.", "已取消匯入。"]
+        "読み込みをキャンセルしました。": ["Import cancelled.", "已取消导入。", "Đã hủy nhập.", "已取消匯入。"],
+        "{p}に名前をつけよう": ["Name your {p}", "给{p}起个名字", "Đặt tên cho {p}", "給{p}起個名字"],
+        "例：ぴょん": ["e.g. Pyon", "例：蹦蹦", "VD: Pyon", "例：蹦蹦"],
+        "コード入力": ["Enter a code", "输入代码", "Nhập mã", "輸入程式碼"],
+        "コード": ["Code", "代码", "Mã", "程式碼"],
+        "使う": ["Apply", "使用", "Dùng", "使用"],
+        "コードを入力してください。": ["Please enter a code.", "请输入代码。", "Hãy nhập mã.", "請輸入程式碼。"],
+        "コードが正しくありません。": ["That code isn't valid.", "代码不正确。", "Mã không hợp lệ.", "程式碼不正確。"],
+        "スペシャルペットを迎えました！": ["The special pet has joined you!", "已迎来特别宠物！", "Đã đón thú cưng đặc biệt!", "已迎來特別寵物！"],
+        "スペシャルペットは、すでに仲間です。": ["The special pet is already with you.", "特别宠物已经是你的伙伴了。", "Thú cưng đặc biệt đã ở cùng bạn rồi.", "特別寵物已經是你的夥伴了。"],
+        "コードが確認されました": ["Code verified", "代码已确认", "Đã xác nhận mã", "程式碼已確認"]
     };
     const MONTHS_EN = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
     const IDX = { en: 0, zh: 1, vi: 2, "zh-TW": 3 };

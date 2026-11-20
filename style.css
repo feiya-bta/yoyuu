@@ -3435,4 +3435,15 @@ html[lang="zh-Hant"] * { font-synthesis: none; }   /* Huninn は太字が無い�
 /* マイルーム全体も専用の重なり順にする。こうしないとバッジの大きな z-index が、
    メニューやダイアログ（画面全体の重なり順）まで突き抜けてしまう */
 .pet-room-preview { isolation: isolate; }
-.pet-room-preview .affection-badge { z-index: 10000; }
+/* バッジは部屋（スクロールする箱）の外に出し、箱の兄弟として一番上に重ねる。
+   さらに専用の描画レイヤーにして、ペットが動いて再描画されても下に回らないようにする */
+/* マイルーム全体を専用の重なり順に閉じ込める（バッジの大きな z-index が、メニューやダイアログまで突き抜けないように） */
+.room-section { position: relative; z-index: 0; isolation: isolate; }
+.room-section-inner { position: relative; }
+.room-section-inner .affection-badge { top: 9px; left: 9px; z-index: 10000; transform: translateZ(0); will-change: transform; }
+
+/* ---- コード入力 ---- */
+.code-row { display: flex; gap: 8px; align-items: center; }
+.code-input { flex: 1 1 auto; min-width: 0; padding: 10px 12px; border: 1px solid var(--line-strong); border-radius: var(--radius-soft); background: var(--surface); color: var(--ink); font-size: 0.9rem; }
+.code-input:focus { outline: none; border-color: var(--accent); }
+@media (pointer: coarse) { .code-input { font-size: 16px; } }

@@ -56,15 +56,16 @@
             <section class="room-section" id="room-section">
               <div class="room-section-inner">
                 <div class="pet-room-preview" id="pet-room-preview">
+                    <div class="room-scroll-wrapper">
+                        <div class="room-scene" id="room-scene-preview"></div>
+                    </div>
+                </div>
+              
                     <div class="affection-badge" id="affection-badge" aria-hidden="true">
                         <span class="material-icons-round">favorite</span>
                         <span class="affection-bar"><span class="affection-bar-fill" id="affection-bar-fill"></span></span>
                         <span class="affection-num"><span id="affection-value">0</span>/100</span>
                     </div>
-                    <div class="room-scroll-wrapper">
-                        <div class="room-scene" id="room-scene-preview"></div>
-                    </div>
-                </div>
               </div>
             </section>
 
@@ -390,6 +391,14 @@
                             <button class="danger-button" id="btn-reset-month">今月のデータをリセット</button>
                             <button class="danger-button" id="btn-reset-all">全データをリセット</button>
                         </div>
+                    </div>
+                    <div class="data-section">
+                        <h4 class="data-section-title">コード入力</h4>
+                        <div class="code-row">
+                            <input type="text" id="input-secret-code" class="code-input" placeholder="コード" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="40">
+                            <button class="secondary-button" id="btn-apply-code" type="button">使う</button>
+                        </div>
+                        <p class="field-hint" id="code-status" role="status" aria-live="polite"></p>
                     </div>
                     <p class="data-storage-info" id="data-storage-info"></p>
                 </div>

@@ -2787,26 +2787,72 @@ function renderAffection() {
     document.getElementById("affection-badge")?.classList.toggle("is-full", v >= AFFECTION_MAX);
 }
 
+// スペシャルペットを仲間にする（100件の記録／確認用コードの両方から使う）
+function unlockSpecialPet(source) {
+    if (!roomData) return false;
+    if (!Array.isArray(roomData.ownedPets)) roomData.ownedPets = [];
+    if (roomData.ownedPets.includes("special")) return false;
+    roomData.ownedPets.push("special");
+    saveRoomData();
+    setTimeout(() => showSpecialUnlockNotice(source), source === "code" ? 150 : 700);
+    return true;
+}
+
+// 削除やリセットの確認と同じカード。OK だけのお知らせ版。
+function showSpecialUnlockNotice(source) {
+    const rows = [
+        source === "code"
+            ? { icon: "key", text: t("コードが確認されました") }
+            : { icon: "favorite", text: t("好感度が100になりました") },
+        { icon: "pets", text: t("ガチャ → コレクションから、いつでも切りかえられます") }
+    ];
+    return showCenterConfirm({
+        id: "special-unlock",
+        title: t("スペシャルペットが仲間に！"),
+        rows,
+        okLabel: "OK",
+        hideCancel: true
+    });
+}
+
+// データ管理の「コード入力」。確認用コードで、すぐにスペシャルペットを仲間にできる。
+const SECRET_CODES = { "tba2026": "special" };
+
+function setupSecretCode() {
+    const input = document.getElementById("input-secret-code");
+    const btn = document.getElementById("btn-apply-code");
+    const status = document.getElementById("code-status");
+    if (!input || !btn) return;
+    const say = (msg, isError) => {
+        if (!status) return;
+        status.textContent = msg;
+        status.style.color = isError ? "var(--danger)" : "var(--accent)";
+    };
+    const apply = () => {
+        const code = input.value.trim().toLowerCase();
+        if (!code) { say(t("コードを入力してください。"), true); return; }
+        const kind = SECRET_CODES[code];
+        if (kind !== "special") { say(t("コードが正しくありません。"), true); return; }
+        input.value = "";
+        if (unlockSpecialPet("code")) {
+            say(t("スペシャルペットを迎えました！"), false);
+            renderAffection();
+        } else {
+            say(t("スペシャルペットは、すでに仲間です。"), false);
+        }
+    };
+    btn.addEventListener("click", apply);
+    input.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); apply(); } });
+}
+
 function addAffection(points) {
     if (!roomData) return 0;
     const before = roomData.affection || 0;
     if (before >= AFFECTION_MAX) return 0;
     roomData.affection = Math.min(AFFECTION_MAX, before + (points || 1));
-    let unlocked = false;
-    if (roomData.affection >= AFFECTION_MAX && !roomData.ownedPets.includes("special")) {
-        roomData.ownedPets.push("special");
-        unlocked = true;
-    }
     saveRoomData();
     renderAffection();
-    if (unlocked) {
-        setTimeout(() => {
-            showCenterGuide("special-unlock", t("スペシャルペットが仲間に！"), [
-                { icon: "favorite", text: t("好感度が100になりました") },
-                { icon: "pets", text: t("ガチャ → コレクションから、いつでも切りかえられます") }
-            ], null, "OK");
-        }, 700);
-    }
+    if (roomData.affection >= AFFECTION_MAX) unlockSpecialPet("affection");
     return roomData.affection - before;
 }
 const TOY_ITEM_IDS = ["nezumi_karakuri", "toy_car_red", "wool_red", "toy_car", "toy_ball", "neko_toy"];
@@ -3586,8 +3632,8 @@ function choosePet(type) {
     const input = document.getElementById("pet-name-input");
     const isRabbit = type === "usagi";
     if (preview) preview.src = isRabbit ? PET_AWAKE_IMG.usagi : PET_AWAKE_IMG.neko;
-    if (title) title.textContent = `${isRabbit ? "うさぎ" : t("ねこ")}に名前をつけよう`;
-    if (input) { input.value = ""; input.placeholder = isRabbit ? "例：ぴょん" : t("例：もち"); }
+    if (title) title.textContent = t("{p}に名前をつけよう", { p: isRabbit ? t("うさぎ") : t("ねこ") });
+    if (input) { input.value = ""; input.placeholder = isRabbit ? t("例：ぴょん") : t("例：もち"); }
     document.getElementById("modal-pet-select")?.classList.remove("open");
     document.getElementById("modal-pet-name")?.classList.add("open");
     setTimeout(() => input?.focus(), 80);
@@ -5470,7 +5516,7 @@ function writeOnboardingState(state) {
 
 // 画面中央に出す、最小限の案内カード
 // 「使い方」と同じカード構造の確認ダイアログ。OK なら true を返す。
-function showCenterConfirm({ id, title, rows, okLabel, cancelLabel, danger }) {
+function showCenterConfirm({ id, title, rows, okLabel, cancelLabel, danger, hideCancel }) {
     return new Promise(resolve => {
         document.getElementById(id)?.remove();
         const overlay = document.createElement("div");
@@ -5493,10 +5539,12 @@ function showCenterConfirm({ id, title, rows, okLabel, cancelLabel, danger }) {
         const ok = overlay.querySelector(".guide-ok");
         ok.textContent = okLabel;
         if (danger) ok.classList.add("is-danger");
-        overlay.querySelector(".guide-cancel").textContent = cancelLabel || t("キャンセル");
+        const cancelBtn = overlay.querySelector(".guide-cancel");
+        cancelBtn.textContent = cancelLabel || t("キャンセル");
+        if (hideCancel) cancelBtn.remove();
         const done = (v) => { overlay.remove(); resolve(v); };
         ok.addEventListener("click", () => done(true));
-        overlay.querySelector(".guide-cancel").addEventListener("click", () => done(false));
+        cancelBtn.addEventListener("click", () => done(false));
         (document.querySelector(".app-container") || document.body).appendChild(overlay);
     });
 }
@@ -5612,6 +5660,7 @@ document.addEventListener("DOMContentLoaded", () => {
     });
     setupLanguageModal();
     setupRoomToggle();
+    setupSecretCode();
     renderAffection();
     // 画面サイズが変わっても、ペットが見える位置に保つ
     let resizeTimer = null;
